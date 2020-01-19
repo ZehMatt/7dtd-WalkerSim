@@ -1,0 +1,6 @@
+/bin
+/7dtd-binaries/*.dll
+/.vs
+/DebugView/obj
+/DebugView/bin
+/WalkerSim/obj

@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<xml>
+  <ModInfo>
+    <Name value="WalkerSim" />
+    <Description value="Zombie Horde Simulation Plugin" />
+    <Author value="ZehMatt" />
+    <Version value="0.0.1" />
+    <Website value="" />
+  </ModInfo>
+</xml>

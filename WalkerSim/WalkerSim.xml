@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<WalkerSim>
+  <!--
+  The simulation tick rate in hz, if you have performance issues you can try lowering this.
+  NOTE: Going lower than 20 may cause issues due to accuracy.
+  -->
+  <UpdateInterval>60</UpdateInterval>
+
+  <!-- 
+  Offline zombmies will always start at a random map border position, so at at first in-game day
+  they would be all scattered at the border. This allows you to simulate ahead on the initial startup.
+  The simulation runs at a fixed tick rate of 40 hz.
+	-->
+  <SpinupTicks>20000</SpinupTicks>
+
+  <!-- 
+  Makes the simulation persistent, if you want to wipe/restart the simulation there are two choices:
+  1: The plugin has a command to reset the simulation: "walkersim reset"
+  2: You can delete the simulation data located at your save path named WalkerSim.bin
+  NOTE: Turning this off will always restart the simulation whenever the server restarts.
+	-->
+  <Persistent>true</Persistent>
+
+  <!-- 
+	Divides the entire map into zones, the zone divider is used on each axis (xy).
+	Offline zombies will use these zones as their goal targets, once a specific zone is 
+	reached with a local offset they will pick a new zone that is close by.
+	-->
+  <WorldZoneDivider>32</WorldZoneDivider>
+
+  <!-- 
+  This group is used when offline zombies become active zombies triggered by players.
+  When a spawned zombies goes offline due to distance it will keep the class.
+	-->
+  <ZombieGroup>ZombiesAll</ZombieGroup>
+
+  <!--
+	Chance the offline zombie will travel to a POI rather than a world zone.
+	This increases the amount of zombies nearby POIs to make exploration a bit more intense.
+	Valid values are from 0.0 - 1.0 representing a chance where 1 is 100%
+	-->
+  <POITravellerChance>0.25</POITravellerChance>
+
+  <!--
+	Population density per square kilometer, this parameter drives the amount of zombies per map size.
+	Some examples (https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population_density):
+	Increasing the population density will also make the game a lot harder, be careful here.
+	-->
+  <PopulationDensity>25</PopulationDensity>
+
+  <!--
+	Given that EnemySpawnMode is required to be set to false sleepers are also affected.
+	The simulation attempts to compensate sleepers by placing offline zombies at the pre-defined position,
+	once sleepers are activated and killed they will respawn at the border like every other offline zombie
+	with the exception that they will travel towards their pre-defined position and stay there once arrived.
+	-->
+  <IncludeSleepers>true</IncludeSleepers>
+
+  <!--
+	Enables the view server allowing the WalkerSimViewer to connect and inspect the entire simulation.
+	NOTE: You should be careful enabling this. The protocol is not efficient and is mainly used for debugging
+	purpose only.
+	-->
+  <ViewServer>true</ViewServer>
+
+  <!--
+	View server port, default is 13632.
+	-->
+  <ViewServerPort>13632</ViewServerPort>
+</WalkerSim>

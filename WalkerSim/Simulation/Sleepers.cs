@@ -15,6 +15,7 @@ namespace WalkerSim
 		public float rot;
 		public int pose;
 		public int blockType;
+		public int index;
 	}
 
 	class Sleepers
@@ -51,6 +52,7 @@ namespace WalkerSim
 									rot = spawnPoint.rot,
 									bounds = bounds,
 									blockType = spawnPoint.blockType,
+									index = _spawns.Count,
 								});
 
 #if DEBUG

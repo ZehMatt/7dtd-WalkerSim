@@ -17,6 +17,8 @@ namespace WalkerSim
 		public float dirX;
 		public float dirY;
 		public bool target;
+		public int sleeperIndex;
+		public bool sleeping;
 	}
 
 	class ZombieAgent : IComparer, IEquatable<ZombieAgent>

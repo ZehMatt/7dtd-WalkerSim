@@ -16,7 +16,7 @@ namespace WalkerSim
 		public Vector3 minsSpawnBlock = Vector3.zero;
 		public Vector3 maxsSpawnBlock = Vector3.zero;
 		public Vector3 center = Vector3.zero;
-		public Bounds bounds = new Bounds();
+		public Bounds triggerBounds = new Bounds();
 		public int numZombies = 0;
 		public int entityId = -1;
 
@@ -139,7 +139,7 @@ namespace WalkerSim
 			ply.minsSpawnBlock = pos - SpawnBlockBox;
 			ply.maxsSpawnBlock = pos + SpawnBlockBox;
 			ply.center = pos;
-			ply.bounds = new Bounds(ply.center, TriggerBounds);
+			ply.triggerBounds = new Bounds(ply.center, TriggerBounds);
 			return ply;
 		}
 

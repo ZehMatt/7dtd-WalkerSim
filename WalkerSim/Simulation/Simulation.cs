@@ -102,7 +102,7 @@ namespace WalkerSim
 				_sleepers.BuildCache();
 			}
 
-			if (!Load())
+			if (!_config.Persistent || !Load())
 			{
 				Reset();
 			}
@@ -163,6 +163,8 @@ namespace WalkerSim
 								dirX = zombie.dir.x,
 								dirY = zombie.dir.z,
 								target = zombie.target is POIZone,
+								sleeperIndex = zombie.sleeperSpawn != null ? zombie.sleeperSpawn.index : -1,
+								sleeping = zombie.sleeping,
 							});
 						}
 						formatter.Serialize(stream, data);
@@ -170,9 +172,10 @@ namespace WalkerSim
 					Log.Out("Saved simulation");
 				}
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				throw;
+				Log.Out("Unable to save simulation");
+				Log.Exception(ex);
 			}
 		}
 
@@ -192,6 +195,8 @@ namespace WalkerSim
 		{
 			try
 			{
+				var sleeperSpawns = _sleepers.GetSpawns();
+
 				using (Stream stream = File.Open(SimulationFile, FileMode.Open))
 				{
 					BinaryFormatter formatter = new BinaryFormatter();
@@ -203,12 +208,19 @@ namespace WalkerSim
 							_inactiveZombies.Clear();
 							foreach (var zombie in data)
 							{
+								SleeperSpawn sleeperSpawn = null;
+								if (zombie.sleeperIndex != -1 && zombie.sleeperIndex < sleeperSpawns.Count)
+								{
+									sleeperSpawn = sleeperSpawns[zombie.sleeperIndex];
+								}
 								_inactiveZombies.Add(new ZombieAgent
 								{
 									health = zombie.health,
 									pos = new Vector3(zombie.x, 0.0f, zombie.y),
 									dir = new Vector3(zombie.dirX, 0.0f, zombie.dirY),
 									target = zombie.target ? _pois.GetRandom(_prng) : null,
+									sleeperSpawn = sleeperSpawn,
+									sleeping = zombie.sleeping,
 								});
 							}
 							Log.Out("Loaded {0} inactive zombies", _inactiveZombies.Count);
@@ -831,7 +843,7 @@ namespace WalkerSim
 						{
 							// Obey sleeper spawn triggers.
 							var sleeperSpawn = zombie.sleeperSpawn;
-							if (!sleeperSpawn.bounds.Intersects(zone.bounds))
+							if (!sleeperSpawn.bounds.Intersects(zone.triggerBounds))
 								continue;
 
 							if (player.CanSee(sleeperSpawn.pos.ToVector3()))
@@ -967,7 +979,14 @@ namespace WalkerSim
 						numUpdates++;
 
 						if (_spinupTicks > 0)
+						{
 							_spinupTicks--;
+							if (_spinupTicks == 0)
+							{
+								Log.Out("[WalkerSim] Spin-up complete");
+								Save();
+							}
+						}
 					}
 
 					// Broadcast at fixed rate.

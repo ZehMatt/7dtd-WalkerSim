@@ -11,6 +11,7 @@ namespace WalkerSim
 	{
 		public int UpdateInterval { get; private set; }
 		public int SpinupTicks { get; private set; }
+		public bool Persistent { get; private set; }
 		public string ZombieGroup { get; private set; }
 		public int WorldZoneDivider { get; private set; }
 		public float POITravellerChance { get; private set; }
@@ -28,6 +29,7 @@ namespace WalkerSim
 			POITravellerChance = 0.25f;
 			PopulationDensity = 25;
 			IncludeSleepers = true;
+			Persistent = true;
 #if DEBUG
 			EnableViewServer = true;
 #else
@@ -78,6 +80,10 @@ namespace WalkerSim
 				case "SpinupTicks":
 					SpinupTicks = int.Parse(node.InnerText);
 					Log.Out("[WalkerSim] {0} = {1}", "SpinupTicks", SpinupTicks);
+					break;
+				case "Persistent":
+					Persistent = node.InnerText.ToLower() == "true";
+					Log.Out("[WalkerSim] {0} = {1}", "Persistent", Persistent);
 					break;
 				case "WorldZoneDivider":
 					WorldZoneDivider = int.Parse(node.InnerText);

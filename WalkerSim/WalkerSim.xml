@@ -61,7 +61,7 @@
 	NOTE: You should be careful enabling this. The protocol is not efficient and is mainly used for debugging
 	purpose only.
 	-->
-  <ViewServer>true</ViewServer>
+  <ViewServer>false</ViewServer>
 
   <!--
 	View server port, default is 13632.

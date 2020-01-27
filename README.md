@@ -12,17 +12,20 @@ and class.
 The simulation will create a finite set of zombies based on the population size. The zombie agents will roam the map
 by picking random zones of the configurable grid. Once a zombie reached the desired target zone it will pick a new zone
 and keeps wandering. 
-![Preview Image](Images/Simulation01.gif)
+
+![Preview Image](Images/Simulation01.gif)  
 Players will have a box around them, the size of the box is determined by the servers maximum view
 configuration, if the zombie agent crosses into the players box border it will create a real in-game zombie, if the
 zombie is out of the player zone it will be despawned and moved back into the simulation retaining its position and
 attributes such as health and zombie class, if a zombie is killed the simulation will create a new agent near the border.
-![Preview Image](Images/PlayerZone.gif)
+
+![Preview Image](Images/PlayerZone.gif)  
 Sleepers are also included in the simulation, unlike zombies they wander towards a random spawn destination set by the prefab.
 Once the sleeper reaches the target destination it will go to sleep and stay there until the player activates the zombie, if they
 die they also respawn at the border like normal agents. Its also possible that a player can activate a sleeper while walking towards
 the sleeper spawn.
-![Preview Image](Images/Sleepers.gif)
+
+![Preview Image](Images/Sleepers.gif)  
 Blue dots in the image are sleepers.
 
 # Inspecting the simulation

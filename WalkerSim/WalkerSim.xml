@@ -28,12 +28,6 @@
 	-->
   <WorldZoneDivider>32</WorldZoneDivider>
 
-  <!-- 
-  This group is used when offline zombies become active zombies triggered by players.
-  When a spawned zombies goes offline due to distance it will keep the class.
-	-->
-  <ZombieGroup>ZombiesAll</ZombieGroup>
-
   <!--
 	Chance the offline zombie will travel to a POI rather than a world zone.
 	This increases the amount of zombies nearby POIs to make exploration a bit more intense.
@@ -55,6 +49,11 @@
 	with the exception that they will travel towards their pre-defined position and stay there once arrived.
 	-->
   <IncludeSleepers>true</IncludeSleepers>
+
+  <!--
+  The maximum amount of sleepers in the population in percentage.
+	-->
+  <MaxSleepers>0.10</MaxSleepers>
 
   <!--
 	Enables the view server allowing the WalkerSimViewer to connect and inspect the entire simulation.

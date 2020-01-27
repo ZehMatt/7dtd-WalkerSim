@@ -17,7 +17,7 @@ namespace WalkerSim
 	public class Simulation
 	{
 		static int DayTimeMin = GamePrefs.GetInt(EnumGamePrefs.DayNightLength);
-		static int MaxAliveZombies = 64; // GamePrefs.GetInt(EnumGamePrefs.MaxSpawnedZombies);
+		static int MaxAliveZombies = GamePrefs.GetInt(EnumGamePrefs.MaxSpawnedZombies);
 
 		static string ConfigFile = string.Format("{0}/WalkerSim.xml", API.ModPath);
 
@@ -159,7 +159,11 @@ namespace WalkerSim
 							{
 								health = zombie.health,
 								x = zombie.pos.x,
-								y = zombie.pos.z,
+								y = zombie.pos.y,
+								z = zombie.pos.z,
+								targetX = zombie.targetPos.x,
+								targetY = zombie.targetPos.y,
+								targetZ = zombie.targetPos.z,
 								dirX = zombie.dir.x,
 								dirY = zombie.dir.z,
 								target = zombie.target is POIZone,
@@ -216,9 +220,10 @@ namespace WalkerSim
 								_inactiveZombies.Add(new ZombieAgent
 								{
 									health = zombie.health,
-									pos = new Vector3(zombie.x, 0.0f, zombie.y),
+									pos = new Vector3(zombie.x, zombie.y, zombie.z),
 									dir = new Vector3(zombie.dirX, 0.0f, zombie.dirY),
 									target = zombie.target ? _pois.GetRandom(_prng) : null,
+									targetPos = new Vector3(zombie.targetX, zombie.targetY, zombie.targetZ),
 									sleeperSpawn = sleeperSpawn,
 									sleeping = zombie.sleeping,
 								});
@@ -261,7 +266,7 @@ namespace WalkerSim
 				var sleepers = _sleepers.GetSpawns();
 
 				int numCreated = 0;
-				int maxSleepers = _maxZombies * 10 / 100;
+				int maxSleepers = (int)Math.Floor(_maxZombies * _config.MaxSleepers);
 				int numSleepers = Math.Min(maxSleepers, sleepers.Count);
 				int maxZombies = _maxZombies - numSleepers;
 
@@ -280,6 +285,7 @@ namespace WalkerSim
 					var targetPos = sleeperSpawn.pos;
 
 					ZombieAgent zombie = CreateInactiveZombie(true);
+					zombie.target = null;
 					zombie.targetPos.x = targetPos.x;
 					zombie.targetPos.y = targetPos.y;
 					zombie.targetPos.z = targetPos.z;
@@ -372,7 +378,7 @@ namespace WalkerSim
 			lock (_inactiveQueueLock)
 			{
 				zombie.pos = GetRandomBorderPoint();
-				if (zombie.sleeperSpawn == null)
+				if (!zombie.IsSleeper())
 				{
 					zombie.target = GetNextTarget(zombie);
 					zombie.targetPos = GetTargetPos(zombie.target);
@@ -406,35 +412,78 @@ namespace WalkerSim
 			return Vector3.zero;
 		}
 
+		private int GetZombieClassFromBiome(World world, Chunk chunk)
+		{
+			ChunkAreaBiomeSpawnData spawnData = chunk.GetChunkBiomeSpawnData();
+			if (spawnData == null)
+				return -1;
+
+			var biomeData = world.Biomes.GetBiome(spawnData.biomeId);
+			if (biomeData == null)
+				return -1;
+
+			BiomeSpawnEntityGroupList biomeSpawnEntityGroupList = BiomeSpawningClass.list[biomeData.m_sBiomeName];
+			if (biomeSpawnEntityGroupList == null)
+				return -1;
+
+			var numGroups = biomeSpawnEntityGroupList.list.Count;
+			if (numGroups == 0)
+				return -1;
+
+			var dayTime = world.IsDaytime() ? EDaytime.Day : EDaytime.Night;
+			for (int i = 0; i < 5; i++)
+			{
+				int pickIndex = _prng.Get(0, numGroups);
+
+				var pick = biomeSpawnEntityGroupList.list[pickIndex];
+				if (pick.daytime == EDaytime.Any || pick.daytime == dayTime)
+				{
+					int lastClassId = -1;
+					return EntityGroups.GetRandomFromGroup(pick.entityGroupRefName, ref lastClassId);
+				}
+			}
+
+			return -1;
+		}
+
 		private bool CreateZombie(ZombieAgent zombie, PlayerZone zone)
 		{
 			var world = GameManager.Instance.World;
 
 			if (!CanSpawnActiveZombie())
 			{
-				RespawnInactiveZombie(zombie);
 				return false;
 			}
 
 			Vector3 spawnPos = Vector3.zero;
+			Chunk chunk = null;
+
 			if (zombie.sleeperSpawn != null)
 			{
 				spawnPos = zombie.sleeperSpawn.pos.ToVector3();
 				spawnPos.x += 0.5f;
 				spawnPos.z += 0.5f;
 
-				Chunk chunk = (Chunk)world.GetChunkSync(World.toChunkXZ(Mathf.FloorToInt(spawnPos.x)), 0, World.toChunkXZ(Mathf.FloorToInt(spawnPos.z)));
+				chunk = (Chunk)world.GetChunkSync(World.toChunkXZ(Mathf.FloorToInt(spawnPos.x)), 0, World.toChunkXZ(Mathf.FloorToInt(spawnPos.z)));
 				if (chunk == null)
 				{
 #if DEBUG
 					Log.Out("Chunk not loaded at {0} {1}", zombie.pos, zombie.pos.z);
 #endif
-					RespawnInactiveZombie(zombie);
 					return false;
 				}
 			}
 			else
 			{
+				chunk = (Chunk)world.GetChunkSync(World.toChunkXZ(Mathf.FloorToInt(zombie.pos.x)), 0, World.toChunkXZ(Mathf.FloorToInt(zombie.pos.z)));
+				if (chunk == null)
+				{
+#if DEBUG
+					Log.Out("Chunk not loaded at {0} {1}", zombie.pos, zombie.pos.z);
+#endif
+					return false;
+				}
+
 				int height = world.GetTerrainHeight(Mathf.FloorToInt(zombie.pos.x), Mathf.FloorToInt(zombie.pos.z));
 
 				spawnPos = new Vector3(zombie.pos.x, height + 1.0f, zombie.pos.z);
@@ -443,15 +492,18 @@ namespace WalkerSim
 #if DEBUG
 					Log.Out("Unable to spawn zombie at {0}, CanMobsSpawnAtPos failed", spawnPos);
 #endif
-					RespawnInactiveZombie(zombie);
 					return false;
 				}
 			}
 
 			if (zombie.classId == -1)
 			{
-				int lastClassId = -1;
-				zombie.classId = EntityGroups.GetRandomFromGroup(_config.ZombieGroup, ref lastClassId);
+				zombie.classId = GetZombieClassFromBiome(world, chunk);
+				if (zombie.classId == -1)
+				{
+					int lastClassId = -1;
+					zombie.classId = EntityGroups.GetRandomFromGroup("ZombiesAll", ref lastClassId);
+				}
 			}
 
 			EntityZombie zombieEnt = EntityFactory.CreateEntity(zombie.classId, spawnPos) as EntityZombie;
@@ -460,7 +512,6 @@ namespace WalkerSim
 #if DEBUG
 				Log.Error("Unable to create zombie entity!, Entity Id: {0}, Pos: {1}", zombie.classId, spawnPos);
 #endif
-				RespawnInactiveZombie(zombie);
 				return false;
 			}
 
@@ -480,7 +531,7 @@ namespace WalkerSim
 					zombieEnt.SetSleeperHearing(tileEntitySleeper.GetHearingPercent());
 				}
 
-				//if (zombie.sleeping)
+				if (zombie.sleeping)
 				{
 					zombieEnt.TriggerSleeperPose(zombie.sleeperSpawn.pose);
 				}
@@ -546,7 +597,11 @@ namespace WalkerSim
 				if (zombieSpawn == null)
 					break;
 
-				CreateZombie(zombieSpawn.zombie, zombieSpawn.zone);
+				if (!CreateZombie(zombieSpawn.zombie, zombieSpawn.zone))
+				{
+					// Failed to spawn zombie, keep population size.
+					RespawnInactiveZombie(zombieSpawn.zombie);
+				}
 			}
 		}
 
@@ -585,10 +640,9 @@ namespace WalkerSim
 
 			for (int i = 0; i < _activeZombies.Count; i++)
 			{
-				var zombie = _activeZombies[i];
-
 				bool removeZombie = false;
 
+				var zombie = _activeZombies[i];
 				var currentZone = zombie.currentZone as PlayerZone;
 				if (currentZone != null)
 				{
@@ -621,11 +675,6 @@ namespace WalkerSim
 					}
 					else
 					{
-						if (zombie.sleeperSpawn != null)
-						{
-							zombie.sleeping = ent.IsSleeping;
-						}
-
 						List<PlayerZone> zones = _playerZones.FindAllByPos2D(ent.GetPosition());
 						if (zones.Count == 0)
 						{
@@ -674,12 +723,7 @@ namespace WalkerSim
 						if (_activeZombies.Count == 0)
 							break;
 					}
-
 					i--;
-				}
-				else
-				{
-					_activeZombies[i] = zombie;
 				}
 			}
 		}
@@ -707,7 +751,7 @@ namespace WalkerSim
 			bool newTarget = false;
 			if (zombie.ReachedTarget())
 			{
-				if (zombie.sleeperSpawn != null)
+				if (zombie.IsSleeper())
 				{
 					zombie.sleeping = true;
 					return;
@@ -839,7 +883,8 @@ namespace WalkerSim
 					{
 						var player = world.GetEntity(zone.entityId) as EntityPlayer;
 
-						if (zombie.IsSleeper())
+						// If the zombie is a sleeper and reached the target we use the sleeper triggers.
+						if (zombie.IsSleeper() && zombie.sleeping)
 						{
 							// Obey sleeper spawn triggers.
 							var sleeperSpawn = zombie.sleeperSpawn;

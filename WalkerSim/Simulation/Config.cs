@@ -12,11 +12,11 @@ namespace WalkerSim
 		public int UpdateInterval { get; private set; }
 		public int SpinupTicks { get; private set; }
 		public bool Persistent { get; private set; }
-		public string ZombieGroup { get; private set; }
 		public int WorldZoneDivider { get; private set; }
 		public float POITravellerChance { get; private set; }
 		public int PopulationDensity { get; private set; }
 		public bool IncludeSleepers { get; private set; }
+		public float MaxSleepers { get; private set; }
 		public bool EnableViewServer { get; private set; }
 		public int ViewServerPort { get; private set; }
 
@@ -24,11 +24,11 @@ namespace WalkerSim
 		{
 			UpdateInterval = 60;
 			SpinupTicks = 10000;
-			ZombieGroup = "ZombiesAll";
 			WorldZoneDivider = 32;
 			POITravellerChance = 0.25f;
 			PopulationDensity = 25;
 			IncludeSleepers = true;
+			MaxSleepers = 0.10f;
 			Persistent = true;
 #if DEBUG
 			EnableViewServer = true;
@@ -100,6 +100,10 @@ namespace WalkerSim
 				case "IncludeSleepers":
 					IncludeSleepers = node.InnerText.ToLower() == "true";
 					Log.Out("[WalkerSim] {0} = {1}", "IncludeSleepers", IncludeSleepers);
+					break;
+				case "MaxSleepers":
+					MaxSleepers = float.Parse(node.InnerText);
+					Log.Out("[WalkerSim] {0} = {1}", "MaxSleepers", MaxSleepers);
 					break;
 #if !DEBUG
 				case "ViewServer":

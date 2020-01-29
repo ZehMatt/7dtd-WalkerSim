@@ -49,6 +49,8 @@ namespace WalkerSim
 		Vector3i _worldMins = new Vector3i();
 		Vector3i _worldMaxs = new Vector3i();
 
+		DateTime _nextBroadcast = DateTime.Now;
+
 		PRNG _prng = new PRNG(0);
 
 		int _nextZombieId = 0;
@@ -152,6 +154,8 @@ namespace WalkerSim
 					BinaryFormatter formatter = new BinaryFormatter();
 					lock (_lock)
 					{
+						formatter.Serialize(stream, _config);
+
 						List<ZombieData> data = new List<ZombieData>();
 						foreach (var zombie in _inactiveZombies)
 						{
@@ -204,6 +208,14 @@ namespace WalkerSim
 				using (Stream stream = File.Open(SimulationFile, FileMode.Open))
 				{
 					BinaryFormatter formatter = new BinaryFormatter();
+
+					Config config = formatter.Deserialize(stream) as Config;
+					if (!config.Equals(_config))
+					{
+						Log.Out("[WalkerSim] Configuration changed, not loading save.");
+						return false;
+					}
+
 					lock (_lock)
 					{
 						List<ZombieData> data = formatter.Deserialize(stream) as List<ZombieData>;
@@ -983,24 +995,35 @@ namespace WalkerSim
 			BackgroundWorker worker = sender as BackgroundWorker;
 			while (worker.CancellationPending == false)
 			{
+				bool isPaused = !(_playerZones.HasPlayers() || !_config.PauseWithoutPlayers);
+
 				double dt = stopwatch.ElapsedMicroseconds / 1000000.0;
 				stopwatch.ResetAndRestart();
 
 				totalElapsed += dt;
-				dtAverage += dt;
-				dtAverage *= 0.5;
 
-				double dtScaled = dt;
-				dtScaled *= _timeScale;
-				_accumulator += dtScaled;
+				if (!isPaused)
+				{
+					dtAverage += dt;
+					dtAverage *= 0.5;
+
+					double dtScaled = dt;
+					dtScaled *= _timeScale;
+					_accumulator += dtScaled;
+				}
+				else
+				{
+					dtAverage = 0.0;
+				}
 
 				_server.Update();
 
 				if (_accumulator < updateRate)
 				{
-					//double remaining = (updateRate - accumulator) * 1000.0;
-					//int sleepTime = (int)Math.Floor(remaining);
-					System.Threading.Thread.Sleep(1);
+					if (isPaused)
+						System.Threading.Thread.Sleep(1000);
+					else
+						System.Threading.Thread.Sleep(1);
 				}
 				else
 				{
@@ -1033,12 +1056,11 @@ namespace WalkerSim
 							}
 						}
 					}
-
-					// Broadcast at fixed rate.
-					BroadcastMapData();
 				}
 
-				if (totalElapsed >= nextReport)
+				BroadcastMapData();
+
+				if (totalElapsed >= nextReport && !isPaused)
 				{
 					double avgFps = 1 / dtAverage;
 					Log.Out("[WalkerSim] FPS Average: {0}", avgFps);
@@ -1061,6 +1083,13 @@ namespace WalkerSim
 		{
 			if (!_server.HasClients())
 				return;
+
+			var now = DateTime.Now;
+			if (now < _nextBroadcast)
+				return;
+
+			// Broadcast only with 20hz.
+			_nextBroadcast = now.AddMilliseconds(1.0f / 20.0f);
 
 			try
 			{

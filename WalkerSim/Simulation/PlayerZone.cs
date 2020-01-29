@@ -217,5 +217,13 @@ namespace WalkerSim
 				return res;
 			}
 		}
+
+		public bool HasPlayers()
+		{
+			lock (_lock)
+			{
+				return _zones.Count > 0;
+			}
+		}
 	}
 }

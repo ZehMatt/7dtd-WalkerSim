@@ -6,6 +6,11 @@
   -->
   <UpdateInterval>60</UpdateInterval>
 
+  <!--
+  Halts the simulation if no players are on the server, set to false for a continious simulation.
+  -->
+  <PauseWithoutPlayers>true</PauseWithoutPlayers>
+
   <!-- 
   Offline zombmies will always start at a random map border position, so at at first in-game day
   they would be all scattered at the border. This allows you to simulate ahead on the initial startup.

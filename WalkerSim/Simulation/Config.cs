@@ -7,9 +7,11 @@ using System.Xml;
 
 namespace WalkerSim
 {
-	public class Config
+	[Serializable]
+	public class Config : IEquatable<Config>
 	{
 		public int UpdateInterval { get; private set; }
+		public bool PauseWithoutPlayers { get; private set; }
 		public int SpinupTicks { get; private set; }
 		public bool Persistent { get; private set; }
 		public int WorldZoneDivider { get; private set; }
@@ -23,6 +25,7 @@ namespace WalkerSim
 		public Config()
 		{
 			UpdateInterval = 60;
+			PauseWithoutPlayers = true;
 			SpinupTicks = 10000;
 			WorldZoneDivider = 32;
 			POITravellerChance = 0.25f;
@@ -36,6 +39,28 @@ namespace WalkerSim
 			EnableViewServer = false;
 #endif
 			ViewServerPort = 13632;
+		}
+
+		public bool Equals(Config other)
+		{
+			// NOTE: Only simulation relevant fields should be tested.
+			if (UpdateInterval != other.UpdateInterval)
+				return false;
+			if (SpinupTicks != other.SpinupTicks)
+				return false;
+			if (Persistent != other.Persistent)
+				return false;
+			if (WorldZoneDivider != other.WorldZoneDivider)
+				return false;
+			if (POITravellerChance != other.POITravellerChance)
+				return false;
+			if (PopulationDensity != other.PopulationDensity)
+				return false;
+			if (IncludeSleepers != other.IncludeSleepers)
+				return false;
+			if (MaxSleepers != other.MaxSleepers)
+				return false;
+			return true;
 		}
 
 		public bool Load(string configFile)
@@ -69,6 +94,17 @@ namespace WalkerSim
 			return true;
 		}
 
+		bool ToBool(string val)
+		{
+			var lower = val.ToLower();
+			if (lower == "false" || lower == "0")
+				return false;
+			else if (lower == "true" || lower == "1")
+				return true;
+			Log.Error("Invalid configuration parameter for bool: {0}", val);
+			return false;
+		}
+
 		private void ProcessNode(XmlNode node)
 		{
 			switch (node.Name)
@@ -77,12 +113,16 @@ namespace WalkerSim
 					UpdateInterval = int.Parse(node.InnerText);
 					Log.Out("[WalkerSim] {0} = {1}", "UpdateInterval", UpdateInterval);
 					break;
+				case "PauseWithoutPlayers":
+					PauseWithoutPlayers = ToBool(node.InnerText);
+					Log.Out("[WalkerSim] {0} = {1}", "PauseWithoutPlayers", PauseWithoutPlayers);
+					break;
 				case "SpinupTicks":
 					SpinupTicks = int.Parse(node.InnerText);
 					Log.Out("[WalkerSim] {0} = {1}", "SpinupTicks", SpinupTicks);
 					break;
 				case "Persistent":
-					Persistent = node.InnerText.ToLower() == "true";
+					Persistent = ToBool(node.InnerText);
 					Log.Out("[WalkerSim] {0} = {1}", "Persistent", Persistent);
 					break;
 				case "WorldZoneDivider":
@@ -98,7 +138,7 @@ namespace WalkerSim
 					Log.Out("[WalkerSim] {0} = {1}", "PopulationDensity", PopulationDensity);
 					break;
 				case "IncludeSleepers":
-					IncludeSleepers = node.InnerText.ToLower() == "true";
+					IncludeSleepers = ToBool(node.InnerText);
 					Log.Out("[WalkerSim] {0} = {1}", "IncludeSleepers", IncludeSleepers);
 					break;
 				case "MaxSleepers":
@@ -107,7 +147,7 @@ namespace WalkerSim
 					break;
 #if !DEBUG
 				case "ViewServer":
-					EnableViewServer = node.InnerText.ToLower() == "true";
+					EnableViewServer = ToBool(node.InnerText);
 					Log.Out("[WalkerSim] {0} = {1}", "ViewServer", EnableViewServer);
 					break;
 #endif

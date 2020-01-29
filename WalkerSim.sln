@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.26430.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WalkerSim", "WalkerSim\WalkerSim.csproj", "{FCF1805A-114C-45DF-8595-31D38A982F63}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WalkerSimViewer", "DebugView\WalkerSimViewer.csproj", "{2A781315-0990-4920-AA73-0B352AFDD6AE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WalkerSimViewer", "WalkerSimViewer\WalkerSimViewer.csproj", "{2A781315-0990-4920-AA73-0B352AFDD6AE}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "ViewData", "DebugData\ViewData.shproj", "{BC60C545-083A-4372-A84B-A190BB686DB4}"
 EndProject

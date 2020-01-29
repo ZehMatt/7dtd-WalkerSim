@@ -84,7 +84,7 @@ namespace WalkerSim
 				Vector3 boxSize = new Vector3 { x = poi.boundingBoxSize.x, y = poi.boundingBoxSize.y, z = poi.boundingBoxSize.z };
 
 				// Increase the box size a bit, this gets better results when merging POIS together.
-				boxSize *= 1.85f;
+				// boxSize *= 1.85f;
 
 				var entry = new POIZone
 				{
@@ -96,7 +96,10 @@ namespace WalkerSim
 				_zones.Add(entry);
 			}
 
-			if (_zones.Count > 1)
+			// TODO: Make this a configuration.
+			bool mergeZones = false;
+
+			if (mergeZones && _zones.Count > 1)
 			{
 				// Merge overlapping POIs into single boxes.
 				while (true)

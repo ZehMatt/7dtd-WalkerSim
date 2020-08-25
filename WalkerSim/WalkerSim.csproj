@@ -38,11 +38,12 @@
   <ItemGroup>
     <Compile Include="Commands.cs" />
     <Compile Include="Extends.cs" />
+    <Compile Include="Simulation\BiomeData.cs" />
     <Compile Include="Simulation\Config.cs" />
+    <Compile Include="Simulation\Hooks.cs" />
     <Compile Include="Simulation\PlayerZone.cs" />
     <Compile Include="Simulation\POIZone.cs" />
     <Compile Include="Simulation\PRNG.cs" />
-    <Compile Include="Simulation\Sleepers.cs" />
     <Compile Include="Simulation\TargetZone.cs" />
     <Compile Include="Simulation\WorldState.cs" />
     <Compile Include="Simulation\WorldZone.cs" />
@@ -70,6 +71,9 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="0Harmony, Version=2.0.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Lib.Harmony.2.0.2\lib\net45\0Harmony.dll</HintPath>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\7dtd-binaries\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
@@ -104,6 +108,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />

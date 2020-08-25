@@ -56,7 +56,7 @@ namespace WalkerSim
                     foreach (var poi in mapData.poiZones)
                     {
                         // Zone
-                        gr.DrawRectangle(Pens.Yellow, Scale(poi.x1), Scale(poi.y1), Scale(poi.x2 - poi.x1), Scale(poi.y2 - poi.y1));
+                        gr.DrawRectangle(Pens.DarkGray, Scale(poi.x1), Scale(poi.y1), Scale(poi.x2 - poi.x1), Scale(poi.y2 - poi.y1));
                     }
                 }
 
@@ -132,6 +132,11 @@ namespace WalkerSim
             if (!_client.IsConnected())
             {
                 btConnect.Text = "Connect";
+                if (mapImage.Image != null)
+                {
+                    mapImage.Image.Dispose();
+                    mapImage.Image = null;
+                }
                 return;
             }
             else

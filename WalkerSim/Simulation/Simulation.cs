@@ -123,6 +123,7 @@ namespace WalkerSim
         public void SetTimeScale(float scale)
         {
             _timeScale = Mathf.Clamp(scale, 0.01f, 100.0f);
+            _accumulator = 0;
         }
 
         public void Start()
@@ -810,7 +811,7 @@ namespace WalkerSim
                         {
                             if (!zone.InsideSpawnArea2D(zombie.pos))
                             {
-                                removeZombie = false;
+                                removeZombie = true;
                                 continue;
                             }
                         }
@@ -888,8 +889,10 @@ namespace WalkerSim
         {
             Log.Out("[WalkerSim] Worker Start");
 
-            MicroStopwatch stopwatch = new MicroStopwatch();
-            stopwatch.Start();
+            MicroStopwatch updateWatch = new MicroStopwatch();
+            updateWatch.Start();
+
+            MicroStopwatch frameWatch = new MicroStopwatch();
 
             double totalElapsed = 0.0;
             double dtAverage = 0.0;
@@ -901,8 +904,8 @@ namespace WalkerSim
             {
                 bool isPaused = !(_playerZones.HasPlayers() || !_config.PauseWithoutPlayers);
 
-                double dt = stopwatch.ElapsedMicroseconds / 1000000.0;
-                stopwatch.ResetAndRestart();
+                double dt = updateWatch.ElapsedMicroseconds / 1000000.0;
+                updateWatch.ResetAndRestart();
 
                 totalElapsed += dt;
 
@@ -931,10 +934,16 @@ namespace WalkerSim
                 }
                 else
                 {
-                    int numUpdates = 0;
+                    frameWatch.ResetAndRestart();
 
-                    while (_accumulator >= updateRate && numUpdates < 200)
+                    while (_accumulator >= updateRate)
                     {
+                        _accumulator -= updateRate;
+
+                        // Prevent long updates in case the timescale is cranked up.
+                        if (frameWatch.ElapsedMilliseconds >= 66)
+                            break;
+
                         try
                         {
                             UpdateInactiveZombies(updateRate);
@@ -946,9 +955,6 @@ namespace WalkerSim
                             Log.Error("[WalkerSim] Exception in worker");
                             Log.Exception(ex);
                         }
-
-                        _accumulator -= updateRate;
-                        numUpdates++;
 
                         if (_spinupTicks > 0)
                         {

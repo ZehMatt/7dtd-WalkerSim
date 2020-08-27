@@ -12,7 +12,7 @@ namespace WalkerSim
     {
         public static void Install()
         {
-            var harmony = new Harmony("com.example.patch");
+            var harmony = new Harmony("WalkerSim.Hooks");
             harmony.PatchAll();
         }
     }

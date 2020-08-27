@@ -4,7 +4,7 @@
     <Name value="WalkerSim" />
     <Description value="Zombie Horde Simulation Plugin" />
     <Author value="ZehMatt" />
-    <Version value="0.0.1" />
+    <Version value="0.2.1" />
     <Website value="" />
   </ModInfo>
 </xml>

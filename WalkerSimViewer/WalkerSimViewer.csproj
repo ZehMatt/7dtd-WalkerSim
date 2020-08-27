@@ -90,6 +90,6 @@
   <ItemGroup>
     <None Include="Resources\icons8_zombie_80_v6j_icon.ico" />
   </ItemGroup>
-  <Import Project="..\DebugData\DebugData.projitems" Label="Shared" />
+  <Import Project="..\ViewData\ViewData.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

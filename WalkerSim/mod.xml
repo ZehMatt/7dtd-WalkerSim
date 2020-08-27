@@ -1,0 +1,11 @@
+<mod>
+  <info>
+    <author>ZehMatt</author>
+    <name>WalkerSim</name>
+    <description>Zombie Horde Simulation Plugin</description>
+    <mod_version>0.2.1</mod_version>
+  </info>
+
+  <dependencies>
+  </dependencies>
+</mod>

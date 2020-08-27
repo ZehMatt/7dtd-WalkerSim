@@ -128,6 +128,7 @@ namespace WalkerSim
                     var ply = _zones[i] as PlayerZone;
                     if (ply.entityId == entityId)
                     {
+                        Log.Out("[WalkerSim] Removed player: {0}", entityId);
                         _zones.RemoveAt(i);
                         return;
                     }

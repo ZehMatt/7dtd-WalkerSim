@@ -14,8 +14,8 @@ namespace WalkerSim
         public static int MaxPlayers = GamePrefs.GetInt(EnumGamePrefs.ServerMaxPlayerCount);
 
         public static Simulation _sim = null;
-        private static DateTime _nextOutputTime = DateTime.Now;
-        private static MicroStopwatch _stopWatch = new MicroStopwatch();
+        static DateTime _nextOutputTime = DateTime.Now;
+        static MicroStopwatch _stopWatch = new MicroStopwatch();
 
         public void InitMod()
         {
@@ -28,7 +28,7 @@ namespace WalkerSim
             Hooks.Install();
         }
 
-        private static void GameStartDone()
+        static void GameStartDone()
         {
             Log.Out("[WalkerSim] GameStartDone");
             _stopWatch.ResetAndRestart();
@@ -37,7 +37,7 @@ namespace WalkerSim
             _sim.Start();
         }
 
-        private static void GameUpdate()
+        static void GameUpdate()
         {
             try
             {
@@ -51,11 +51,11 @@ namespace WalkerSim
             }
             catch (Exception e)
             {
-                Log.Exception(e);
+                Log.Out(string.Format("[WalkerSim] Error in API.GameUpdate: {0}.", e.Message));
             }
         }
 
-        private static void GameShutdown()
+        static void GameShutdown()
         {
             Log.Out("[WalkerSim] GameShutdown");
             try
@@ -67,24 +67,40 @@ namespace WalkerSim
             }
             catch (Exception e)
             {
-                Log.Exception(e);
+                Log.Out(string.Format("[WalkerSim] Error in API.GameShutdown: {0}.", e.Message));
             }
         }
 
-        private static void PlayerSpawnedInWorld(ClientInfo _cInfo, RespawnType _respawnReason, Vector3i _pos)
+        // Helper function for single player games where _cInfo is null.
+        static int GetPlayerEntityId(ClientInfo _cInfo)
+        {
+            if (_cInfo != null)
+                return _cInfo.entityId;
+
+            // On a local host this is set to null, grab id from player list.
+            var world = GameManager.Instance.World;
+            var player = world.Players.list[0];
+
+            return player.entityId;
+        }
+
+        static void PlayerSpawnedInWorld(ClientInfo _cInfo, RespawnType _respawnReason, Vector3i _pos)
         {
             try
             {
-                Log.Out("API.PlayerSpawnedInWorld");
+#if DEBUG
+                Log.Out("[WalkerSim] PlayerSpawnedInWorld \"{0}\", \"{1}\", \"{2}\"", _cInfo, _respawnReason, _pos);
+#endif
                 if (_sim != null)
                 {
+                    int entityId = GetPlayerEntityId(_cInfo);
                     switch (_respawnReason)
                     {
                         case RespawnType.NewGame:
                         case RespawnType.LoadedGame:
                         case RespawnType.EnterMultiplayer:
                         case RespawnType.JoinMultiplayer:
-                            _sim.AddPlayer(_cInfo.entityId);
+                            _sim.AddPlayer(entityId);
                             break;
 
                     }
@@ -96,13 +112,15 @@ namespace WalkerSim
             }
         }
 
-        private static void PlayerDisconnected(ClientInfo _cInfo, bool _bShutdown)
+        static void PlayerDisconnected(ClientInfo _cInfo, bool _bShutdown)
         {
             try
             {
-                _sim.RemovePlayer(_cInfo.entityId);
-
-                Log.Out("API.PlayerDisconnected({0}, {1})", _cInfo, _bShutdown);
+#if DEBUG
+                Log.Out("[WalkerSim] PlayerDisconnected(\"{0}\", \"{1}\")", _cInfo, _bShutdown);
+#endif
+                int entityId = GetPlayerEntityId(_cInfo);
+                _sim.RemovePlayer(entityId);
             }
             catch (Exception e)
             {

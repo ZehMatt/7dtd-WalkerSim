@@ -12,12 +12,6 @@
   <PauseWithoutPlayers>true</PauseWithoutPlayers>
 
   <!-- 
-  Offline zombmies will always start at a random map border position, so at at first in-game day
-  they would be all scattered at the border. This allows you to simulate ahead on the initial startup.
-	-->
-  <SpinupTicks>20000</SpinupTicks>
-
-  <!-- 
   Makes the simulation persistent, if you want to wipe/restart the simulation there are two choices:
   1: The plugin has a command to reset the simulation: "walkersim reset"
   2: You can delete the simulation data located at your save path named WalkerSim.bin
@@ -44,14 +38,14 @@
 	Some examples (https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population_density):
 	Increasing the population density will also make the game a lot harder, be careful here.
 	-->
-  <PopulationDensity>65</PopulationDensity>
+  <PopulationDensity>120</PopulationDensity>
 
   <!--
 	Enables the view server allowing the WalkerSimViewer to connect and inspect the entire simulation.
 	NOTE: You should be careful enabling this. The protocol is not efficient and is mainly used for debugging
 	purpose only.
 	-->
-  <ViewServer>true</ViewServer>
+  <ViewServer>false</ViewServer>
 
   <!--
 	View server port, default is 13632.

@@ -67,7 +67,6 @@ namespace WalkerSim
         int _maxZombies = 0;
         float _timeScale = 1.0f;
         double _accumulator = 0.0;
-        int _spinupTicks = 0;
 
         DateTime _nextSave = DateTime.Now;
 
@@ -107,13 +106,6 @@ namespace WalkerSim
             _pois.BuildCache();
             _worldZones.BuildZones(_worldMins, _worldMaxs, _config);
 
-            if (!_config.Persistent || !Load())
-            {
-                Reset();
-            }
-
-            _nextSave = DateTime.Now.AddMinutes(5);
-
             _worker.WorkerSupportsCancellation = true;
             _worker.DoWork += BackgroundUpdate;
 
@@ -128,7 +120,18 @@ namespace WalkerSim
 
         public void Start()
         {
+            if (_running)
+            {
+                Log.Error("Simulation is already running");
+                return;
+            }
+
             Log.Out("[WalkerSim] Starting worker..");
+
+            if (!_config.Persistent || !Load())
+            {
+                Reset();
+            }
 
             _running = true;
             _worker.RunWorkerAsync();
@@ -136,32 +139,29 @@ namespace WalkerSim
 
         public void Stop()
         {
+            if (!_running)
+                return;
+
             Log.Out("[WalkerSim] Stopping worker..");
 
             _worker.CancelAsync();
-            _running = false;
         }
 
         public void AddPlayer(int entityId)
         {
-            lock (_lock)
-            {
-                Log.Out("[WalkerSim] Added player: {0}", entityId);
-                _playerZones.AddPlayer(entityId);
-            }
+            _playerZones.AddPlayer(entityId);
         }
 
         public void RemovePlayer(int entityId)
         {
-            lock (_lock)
-            {
-                Log.Out("[WalkerSim] Removed player: {0}", entityId);
-                _playerZones.RemovePlayer(entityId);
-            }
+            _playerZones.RemovePlayer(entityId);
         }
 
         public void Save()
         {
+            if (!_config.Persistent)
+                return;
+
             try
             {
                 using (Stream stream = File.Open(SimulationFile, FileMode.Create))
@@ -283,16 +283,9 @@ namespace WalkerSim
 
                 // Populate
                 CreateInactiveRoaming();
-
-                if (_config.SpinupTicks > 0)
-                {
-                    Log.Out("[WalkerSim] Reset simulation, spin-up ticks: {0}", _config.SpinupTicks);
-
-                    float updateRate = 1.0f / (float)_config.UpdateInterval;
-                    _accumulator += (updateRate * _config.SpinupTicks);
-                    _spinupTicks = _config.SpinupTicks;
-                }
             }
+
+            _nextSave = DateTime.Now.AddMinutes(5);
         }
 
         private void CreateInactiveRoaming()
@@ -312,11 +305,12 @@ namespace WalkerSim
             }
         }
 
-        private Vector2i GetRandomPos()
+        private Vector3 GetRandomPos()
         {
-            Vector2i res = new Vector2i();
+            var res = new Vector3();
             res.x = _prng.Get(_worldMins.x, _worldMaxs.x);
-            res.y = _prng.Get(_worldMins.z, _worldMaxs.z);
+            res.y = 0.0f;
+            res.z = _prng.Get(_worldMins.z, _worldMaxs.z);
             return res;
         }
 
@@ -365,7 +359,44 @@ namespace WalkerSim
         {
             ZombieAgent zombie = new ZombieAgent();
             zombie.id = _nextZombieId++;
-            zombie.pos = GetRandomBorderPoint();
+
+            if (initial)
+            {
+                // The initial population is placed nearby pois more frequently.
+                var poiChance = 0.8f;
+
+                var poi = _prng.Chance(poiChance) ? _pois.GetRandom(_prng) : null;
+                if (poi != null)
+                {
+                    // To be not literally inside the POI we add a random radius.
+                    var spawnRadius = 256.0f;
+                    var randOffset = new Vector3(
+                        _prng.Get(-spawnRadius, spawnRadius),
+                        0.0f,
+                        _prng.Get(-spawnRadius, spawnRadius));
+                    zombie.pos = poi.GetRandomPos(_prng) + randOffset;
+                    zombie.pos = WrapPos(zombie.pos);
+                }
+                else
+                {
+                    // Use a random world zone for the rest.
+                    var zone = _worldZones.GetRandom(_prng);
+                    if (zone != null)
+                    {
+                        zombie.pos = zone.GetRandomPos(_prng);
+                    }
+                    else
+                    {
+                        zombie.pos = GetRandomPos();
+                    }
+                }
+            }
+            else
+            {
+                // New zombies start at the border.
+                zombie.pos = GetRandomBorderPoint();
+            }
+
             zombie.target = GetNextTarget(zombie);
             zombie.targetPos = GetTargetPos(zombie.target);
 
@@ -726,9 +757,6 @@ namespace WalkerSim
             zombie.dir.Normalize();
 
             float speed = _worldState.GetZombieSpeed() * dt;
-            if (_spinupTicks > 0)
-                speed *= 10.0f;
-
             zombie.pos = Vector3.MoveTowards(zombie.pos, zombie.targetPos, speed);
         }
 
@@ -768,7 +796,6 @@ namespace WalkerSim
             int maxUpdates = _maxZombies;
             int maxPerZone = MaxZombiesPerZone();
             int numInactive = _inactiveZombies.Count;
-            var world = GameManager.Instance.World;
 
             WorldEvent ev = null;
             lock (_worldEvents)
@@ -785,6 +812,13 @@ namespace WalkerSim
                 {
                     if (i >= _inactiveZombies.Count)
                         break;
+
+                    var world = GameManager.Instance.World;
+                    if (world == null)
+                    {
+                        Log.Out("[WalkerSim] World no longer exists, bailing");
+                        break;
+                    }
 
                     bool removeZombie = false;
                     bool activatedZombie = false;
@@ -936,35 +970,33 @@ namespace WalkerSim
                 {
                     frameWatch.ResetAndRestart();
 
-                    while (_accumulator >= updateRate)
+                    try
                     {
-                        _accumulator -= updateRate;
-
-                        // Prevent long updates in case the timescale is cranked up.
-                        if (frameWatch.ElapsedMilliseconds >= 66)
-                            break;
-
-                        try
+                        while (_accumulator >= updateRate)
                         {
-                            UpdateInactiveZombies(updateRate);
-                            CheckAutoSave();
-                        }
-                        catch (Exception ex)
-                        {
-                            //Log.Out("Exception in worker: {0}", ex.Message);
-                            Log.Error("[WalkerSim] Exception in worker");
-                            Log.Exception(ex);
-                        }
-
-                        if (_spinupTicks > 0)
-                        {
-                            _spinupTicks--;
-                            if (_spinupTicks == 0)
+                            var world = GameManager.Instance.World;
+                            if (world == null)
                             {
-                                Log.Out("[WalkerSim] Spin-up complete");
-                                Save();
+                                // Work-around for client only support, some events are skipped like for when the player exits.
+                                Log.Out("[WalkerSim] World no longer exists, stopping simulation");
+                                _worker.CancelAsync();
+                                break;
                             }
+
+                            _accumulator -= updateRate;
+
+                            // Prevent long updates in case the timescale is cranked up.
+                            if (frameWatch.ElapsedMilliseconds >= 66)
+                                break;
+
+                            UpdateInactiveZombies(updateRate);
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        //Log.Out("Exception in worker: {0}", ex.Message);
+                        Log.Error("[WalkerSim] Exception in worker");
+                        Log.Exception(ex);
                     }
                 }
 
@@ -981,7 +1013,8 @@ namespace WalkerSim
                 }
             }
 
-            Log.Out("Worker Finished");
+            Log.Out("[WalkerSim] Worker Finished");
+            _running = false;
         }
 
         public Vector2i WorldToBitmap(Vector3 pos)

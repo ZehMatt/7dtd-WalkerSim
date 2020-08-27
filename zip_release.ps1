@@ -1,4 +1,4 @@
-$ver = Read-Host -Prompt 'Enter the version:'
+$ver = Read-Host -Prompt 'Enter the version'
 mkdir release -Force > $null
 cd dmt
 Compress-Archive .\* ..\release\WalkerSim.$ver-DMT.zip -Force

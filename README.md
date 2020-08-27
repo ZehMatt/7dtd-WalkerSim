@@ -19,26 +19,19 @@ configuration, if the zombie agent crosses into the players box border it will c
 zombie is out of the player zone it will be despawned and moved back into the simulation retaining its position and
 attributes such as health and zombie class, if a zombie is killed the simulation will create a new agent near the border.
 
-![Preview Image](Images/PlayerZone.gif)  
-Sleepers are also included in the simulation, unlike zombies they wander towards a random spawn destination set by the prefab.
-Once the sleeper reaches the target destination it will go to sleep and stay there until the player activates the zombie, if they
-die they also respawn at the border like normal agents. Its also possible that a player can activate a sleeper while walking towards
-the sleeper spawn.
+# Installation (DMT)
+Download the latest 'DMT' release from https://github.com/ZehMatt/7dtd-WalkerSim/releases and extract the Mod folder into your DMT mods folder. Launch DMT and press build, that should be all.
 
-![Preview Image](Images/Sleepers.gif)  
-Blue dots in the image are sleepers.
+# Installation (Dedicated Server)
+Download the latest 'Dedicated' release from https://github.com/ZehMatt/7dtd-WalkerSim/releases and extract the Mod folder into your <7daystodiededicated_path>/Mods folder and start the server.
+
+# Configuration
+You are able to modify some aspects of the simulation via the WalkerSim.xml, this file has to exist in "<7daystodiededicated>/Mods/WalkerSim" for either the Dedicated or DMT variant. In order to reset the saved with the new configuration either start a new map or type "walkersim reset" into the dedicated server/game console.
 
 # Inspecting the simulation
 The plugin also provides a viewer client, the server must be required to enable this specifically as it consumes a rather big
 amount of bandwidth, it is currently not optimized or pretty but but helps the development a lot.
 ![Preview Image](Images/Viewer01.png)
-
-# Usage
-Drop the plugin into the Mods folder and make sure you have "EnemySpawnMode" set to false in your server configuration,
-this is important to ensure the game will not try to spawn zombies on its own anymore. Boot up your server and thats it.
-
-# Binaries
-Will follow soon, right now you need to compile it on your own.
 
 # Bugs
 This is more a proof of concept than a fully fledged plugin at this point, so be aware.

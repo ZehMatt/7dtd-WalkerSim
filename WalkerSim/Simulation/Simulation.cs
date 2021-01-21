@@ -31,8 +31,6 @@ namespace WalkerSim
         static int MaxAliveZombies = GamePrefs.GetInt(EnumGamePrefs.MaxSpawnedZombies);
 
         static string ConfigFile = string.Format("{0}/WalkerSim.xml", API.ModPath);
-
-        static float DayTimeScale = (24.0f * 60.0f) / DayTimeMin;
         static string SimulationFile = string.Format("{0}/WalkerSim.bin", GameUtils.GetSaveGameDir());
 
         System.Object _lock = new System.Object();
@@ -65,8 +63,9 @@ namespace WalkerSim
 
         int _nextZombieId = 0;
         int _maxZombies = 0;
-        float _timeScale = 1.0f;
         double _accumulator = 0.0;
+        float _timeScale = 1.0f;
+        float _walkSpeedScale = 1.0f;
 
         DateTime _nextSave = DateTime.Now;
 
@@ -90,7 +89,6 @@ namespace WalkerSim
             Log.Out("Simulation File: {0}", SimulationFile);
             Log.Out("World X: {0}, World Y: {1}, {2}, {3}", lenX, lenY, _worldMins, _worldMaxs);
             Log.Out("Day Time: {0}", DayTimeMin);
-            Log.Out("Day Time Scale: {0}", DayTimeScale);
             Log.Out("Max Zombies: {0}", _maxZombies);
 
             if (_config.EnableViewServer)
@@ -116,6 +114,11 @@ namespace WalkerSim
         {
             _timeScale = Mathf.Clamp(scale, 0.01f, 100.0f);
             _accumulator = 0;
+        }
+
+        public void SetWalkSpeedScale(float scale)
+        {
+            _walkSpeedScale = Mathf.Clamp(scale, 0.01f, 100.0f);
         }
 
         public void Start()
@@ -145,6 +148,7 @@ namespace WalkerSim
             Log.Out("[WalkerSim] Stopping worker..");
 
             _worker.CancelAsync();
+            _running = false;
         }
 
         public void AddPlayer(int entityId)
@@ -756,7 +760,9 @@ namespace WalkerSim
             zombie.dir = zombie.targetPos - zombie.pos;
             zombie.dir.Normalize();
 
-            float speed = _worldState.GetZombieSpeed() * dt;
+            float speed = _worldState.GetZombieSpeed() * _walkSpeedScale;
+            speed *= dt;
+
             zombie.pos = Vector3.MoveTowards(zombie.pos, zombie.targetPos, speed);
         }
 

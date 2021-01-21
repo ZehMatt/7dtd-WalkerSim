@@ -326,23 +326,23 @@ namespace WalkerSim
             {
                 case 0:
                     // Top
-                    res.x = _prng.Get(_worldMins.x, _worldMaxs.x);
+                    res.x = _prng.Get(_worldMins.x + 1, _worldMaxs.x - 1);
                     res.z = _worldMins.z + 1;
                     break;
                 case 1:
                     // Bottom
-                    res.x = _prng.Get(_worldMins.x, _worldMaxs.x);
+                    res.x = _prng.Get(_worldMins.x + 1, _worldMaxs.x - 1);
                     res.z = _worldMaxs.z - 1;
                     break;
                 case 2:
                     // Left
                     res.x = _worldMins.x + 1;
-                    res.z = _prng.Get(_worldMins.z, _worldMaxs.z);
+                    res.z = _prng.Get(_worldMins.z + 1, _worldMaxs.z - 1);
                     break;
                 case 3:
                     // Right
                     res.x = _worldMaxs.x - 1;
-                    res.z = _prng.Get(_worldMins.z, _worldMaxs.z);
+                    res.z = _prng.Get(_worldMins.z + 1, _worldMaxs.z - 1);
                     break;
             }
             return res;

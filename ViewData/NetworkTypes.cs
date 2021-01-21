@@ -1,18 +1,15 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 
 namespace WalkerSim.Viewer
 {
-	enum DataType
-	{
-		MapData,
-	}
+    enum DataType
+    {
+        MapData,
+    }
 
-	interface IWalkerSimMessage
-	{
-		void Serialize(Stream stream);
-		void Deserialize(Stream stream);
-	}
+    interface IWalkerSimMessage
+    {
+        void Serialize(Stream stream);
+        void Deserialize(Stream stream);
+    }
 }

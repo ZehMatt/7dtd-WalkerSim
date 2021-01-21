@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace WalkerSim
@@ -16,6 +12,8 @@ namespace WalkerSim
         public bool Persistent { get; private set; }
         public int WorldZoneDivider { get; private set; }
         public float POITravellerChance { get; private set; }
+        public float LeaderRadius { get; private set; }
+        public float LeaderEventChance { get; private set; }
         public int PopulationDensity { get; private set; }
         public bool IncludeSleepers { get; private set; }
         public float MaxSleepers { get; private set; }
@@ -29,14 +27,16 @@ namespace WalkerSim
             SpinupTicks = 10000;
             WorldZoneDivider = 32;
             POITravellerChance = 0.25f;
-            PopulationDensity = 120;
+            LeaderEventChance = 0.45f;
+            LeaderRadius = 200.0f;
+            PopulationDensity = 60;
             IncludeSleepers = true;
             MaxSleepers = 0.10f;
             Persistent = true;
 #if DEBUG
-			EnableViewServer = true;
+            EnableViewServer = true;
 #else
-            EnableViewServer = false;
+            EnableViewServer = true;
 #endif
             ViewServerPort = 13632;
         }

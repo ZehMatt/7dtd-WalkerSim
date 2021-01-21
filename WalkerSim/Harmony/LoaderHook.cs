@@ -8,11 +8,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 using UnityEngine;
-using DMT;
 
 [HarmonyPatch(typeof(GameManager))]
 [HarmonyPatch("StartGame")]
-public class WalkerSimLoader : IHarmony
+public class WalkerSimLoader : DMT.IHarmony
 {
 	public static WalkerSim.API api = null;
 	

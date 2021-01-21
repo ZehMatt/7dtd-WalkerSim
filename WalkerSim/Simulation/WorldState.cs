@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace WalkerSim
+﻿namespace WalkerSim
 {
     public class WorldState
     {
@@ -39,21 +33,21 @@ namespace WalkerSim
         public void Update()
         {
 #if DEBUG
-			var oldIsNight = _isNight;
-			var oldIsBloodMoon = _isBloodMoon;
-			var oldZombieSpeed = _zombieSpeed;
+            var oldIsNight = _isNight;
+            var oldIsBloodMoon = _isBloodMoon;
+            var oldZombieSpeed = _zombieSpeed;
 #endif
             var world = GameManager.Instance.World;
             _isNight = world.IsDark();
             _isBloodMoon = SkyManager.BloodMoon();
             _zombieSpeed = CalculateZombieSpeed();
 #if DEBUG
-			if (oldIsNight != _isNight)
-				Log.Out("[WalkerSim] isNight, Old: {0}, New: {1}", oldIsNight, _isNight);
-			if (oldIsBloodMoon != _isBloodMoon)
-				Log.Out("[WalkerSim] isBloodMoon, Old: {0}, New: {1}", oldIsBloodMoon, _isBloodMoon);
-			if (oldZombieSpeed != _zombieSpeed)
-				Log.Out("[WalkerSim] zombieSpeed, Old: {0}, New: {1}", oldZombieSpeed, _zombieSpeed);
+            if (oldIsNight != _isNight)
+                Log.Out("[WalkerSim] isNight, Old: {0}, New: {1}", oldIsNight, _isNight);
+            if (oldIsBloodMoon != _isBloodMoon)
+                Log.Out("[WalkerSim] isBloodMoon, Old: {0}, New: {1}", oldIsBloodMoon, _isBloodMoon);
+            if (oldZombieSpeed != _zombieSpeed)
+                Log.Out("[WalkerSim] zombieSpeed, Old: {0}, New: {1}", oldZombieSpeed, _zombieSpeed);
 #endif
         }
 

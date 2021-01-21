@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Threading;
+using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
-using System.IO;
 
 namespace WalkerSim
 {
     enum WorldEventType
     {
+        Follow,
         Sound,
     }
     class WorldEvent
@@ -17,6 +17,7 @@ namespace WalkerSim
         public WorldEventType Type;
         public Vector3 Pos;
         public float Radius;
+        public object Inflictor;
     }
 
     class ZombieSpawnRequest
@@ -31,8 +32,6 @@ namespace WalkerSim
         static int MaxAliveZombies = GamePrefs.GetInt(EnumGamePrefs.MaxSpawnedZombies);
 
         static string ConfigFile = string.Format("{0}/WalkerSim.xml", API.ModPath);
-
-        static float DayTimeScale = (24.0f * 60.0f) / DayTimeMin;
         static string SimulationFile = string.Format("{0}/WalkerSim.bin", GameUtils.GetSaveGameDir());
 
         System.Object _lock = new System.Object();
@@ -54,9 +53,11 @@ namespace WalkerSim
         Queue<ZombieAgent> _inactiveQueue = new Queue<ZombieAgent>();
 
         Queue<WorldEvent> _worldEvents = new Queue<WorldEvent>();
+        List<ZombieType> _zombieTypeSelection = new List<ZombieType>();
 
         Vector3i _worldMins = new Vector3i();
         Vector3i _worldMaxs = new Vector3i();
+        Bounds _worldBounds = new Bounds();
 
         DateTime _nextBroadcast = DateTime.Now;
         BiomeData _biomeData = new BiomeData();
@@ -65,7 +66,9 @@ namespace WalkerSim
 
         int _nextZombieId = 0;
         int _maxZombies = 0;
+        long _updateTick = 0;
         float _timeScale = 1.0f;
+        float _walkSpeedScale = 1.0f;
         double _accumulator = 0.0;
 
         DateTime _nextSave = DateTime.Now;
@@ -80,6 +83,9 @@ namespace WalkerSim
             var world = GameManager.Instance.World;
             world.GetWorldExtent(out _worldMins, out _worldMaxs);
 
+            _worldBounds.min = _worldMins.ToVector3();
+            _worldBounds.max = _worldMaxs.ToVector3();
+
             float lenX = _worldMins.x < 0 ? _worldMaxs.x + Math.Abs(_worldMins.x) : _worldMaxs.x - Math.Abs(_worldMins.x);
             float lenY = _worldMins.z < 0 ? _worldMaxs.z + Math.Abs(_worldMins.z) : _worldMaxs.x - Math.Abs(_worldMins.z);
 
@@ -90,8 +96,18 @@ namespace WalkerSim
             Log.Out("Simulation File: {0}", SimulationFile);
             Log.Out("World X: {0}, World Y: {1}, {2}, {3}", lenX, lenY, _worldMins, _worldMaxs);
             Log.Out("Day Time: {0}", DayTimeMin);
-            Log.Out("Day Time Scale: {0}", DayTimeScale);
             Log.Out("Max Zombies: {0}", _maxZombies);
+
+            int typeIndex = 0;
+            foreach (var type in Enum.GetValues(typeof(ZombieType)))
+            {
+                var weight = ZombieAgent.ZombieTypeChance[typeIndex];
+                for (int i = 0; i < (weight * 100); i++)
+                {
+                    _zombieTypeSelection.Add((ZombieType)type);
+                }
+                typeIndex++;
+            }
 
             if (_config.EnableViewServer)
             {
@@ -116,6 +132,11 @@ namespace WalkerSim
         {
             _timeScale = Mathf.Clamp(scale, 0.01f, 100.0f);
             _accumulator = 0;
+        }
+
+        public void SetWalkSpeedScale(float scale)
+        {
+            _walkSpeedScale = Mathf.Clamp(scale, 0.01f, 100.0f);
         }
 
         public void Start()
@@ -145,6 +166,9 @@ namespace WalkerSim
             Log.Out("[WalkerSim] Stopping worker..");
 
             _worker.CancelAsync();
+            _running = false;
+
+            Clear();
         }
 
         public void AddPlayer(int entityId)
@@ -257,10 +281,8 @@ namespace WalkerSim
             return true;
         }
 
-        public void Reset()
+        public void Clear()
         {
-            var world = GameManager.Instance.World;
-
             lock (_spawnQueue)
             {
                 _spawnQueue.Clear();
@@ -269,33 +291,49 @@ namespace WalkerSim
             lock (_lock)
             {
                 // Cleanup all zombies.
-                var ents = new List<Entity>(world.Entities.list);
-                foreach (var ent in ents)
-                {
-                    if (ent.entityType == EntityType.Zombie)
-                    {
-                        world.RemoveEntity(ent.entityId, EnumRemoveEntityReason.Despawned);
-                    }
-                }
+                RemoveAliveZombies();
 
                 _activeZombies.Clear();
                 _inactiveZombies.Clear();
+            }
+        }
 
-                // Populate
-                CreateInactiveRoaming();
+        public void Reset()
+        {
+            Clear();
+
+            lock (_lock)
+            {
+                PopulateInactives(true);
             }
 
             _nextSave = DateTime.Now.AddMinutes(5);
         }
 
-        private void CreateInactiveRoaming()
+        private void RemoveAliveZombies()
+        {
+            var world = GameManager.Instance.World;
+            if (world == null)
+                return;
+
+            var ents = new List<Entity>(world.Entities.list);
+            foreach (var ent in ents)
+            {
+                if (ent.entityType == EntityType.Zombie)
+                {
+                    world.RemoveEntity(ent.entityId, EnumRemoveEntityReason.Despawned);
+                }
+            }
+        }
+
+        private void PopulateInactives(bool initial)
         {
             int maxZombies = _maxZombies;
             int numCreated = 0;
 
             while (_inactiveZombies.Count < maxZombies)
             {
-                CreateInactiveZombie(true);
+                CreateInactiveZombie(initial);
                 numCreated++;
             }
 
@@ -322,23 +360,23 @@ namespace WalkerSim
             {
                 case 0:
                     // Top
-                    res.x = _prng.Get(_worldMins.x, _worldMaxs.x);
+                    res.x = _prng.Get(_worldMins.x + 1, _worldMaxs.x - 1);
                     res.z = _worldMins.z + 1;
                     break;
                 case 1:
                     // Bottom
-                    res.x = _prng.Get(_worldMins.x, _worldMaxs.x);
+                    res.x = _prng.Get(_worldMins.x + 1, _worldMaxs.x + 1);
                     res.z = _worldMaxs.z - 1;
                     break;
                 case 2:
                     // Left
                     res.x = _worldMins.x + 1;
-                    res.z = _prng.Get(_worldMins.z, _worldMaxs.z);
+                    res.z = _prng.Get(_worldMins.z + 1, _worldMaxs.z - 1);
                     break;
                 case 3:
                     // Right
                     res.x = _worldMaxs.x - 1;
-                    res.z = _prng.Get(_worldMins.z, _worldMaxs.z);
+                    res.z = _prng.Get(_worldMins.z + 1, _worldMaxs.z - 1);
                     break;
             }
             return res;
@@ -362,9 +400,7 @@ namespace WalkerSim
 
             if (initial)
             {
-                // The initial population is placed nearby pois more frequently.
-                var poiChance = 0.8f;
-
+                var poiChance = _config.POITravellerChance;
                 var poi = _prng.Chance(poiChance) ? _pois.GetRandom(_prng) : null;
                 if (poi != null)
                 {
@@ -397,6 +433,7 @@ namespace WalkerSim
                 zombie.pos = GetRandomBorderPoint();
             }
 
+            zombie.type = _zombieTypeSelection[_prng.Get(_zombieTypeSelection.Count)];
             zombie.target = GetNextTarget(zombie);
             zombie.targetPos = GetTargetPos(zombie.target);
 
@@ -409,9 +446,6 @@ namespace WalkerSim
         {
             lock (_inactiveQueue)
             {
-                zombie.pos = GetRandomBorderPoint();
-                zombie.target = GetNextTarget(zombie);
-                zombie.targetPos = GetTargetPos(zombie.target);
                 _inactiveQueue.Enqueue(zombie);
             }
         }
@@ -555,13 +589,15 @@ namespace WalkerSim
                 ZombieSpawnRequest zombieSpawn = null;
                 lock (_spawnQueue)
                 {
+                    if (!_running)
+                        break;
                     if (_spawnQueue.Count == 0)
                         break;
                     zombieSpawn = _spawnQueue.Dequeue();
                 }
                 if (!CreateZombie(zombieSpawn.zombie, zombieSpawn.zone))
                 {
-                    // Failed to spawn zombie, keep population size.
+                    // Failed to spawn zombie, keep nearby.
                     RespawnInactiveZombie(zombieSpawn.zombie);
                 }
             }
@@ -574,7 +610,7 @@ namespace WalkerSim
 
         private POIZone GetNextPOI(ZombieAgent zombie)
         {
-            var closest = _pois.GetRandomClosest(zombie.pos, _prng, 5000, 3);
+            var closest = _pois.GetRandomClosest(zombie.pos, _prng, 5000);
             if (closest == null)
                 return _pois.GetRandom(_prng);
             return closest;
@@ -586,7 +622,12 @@ namespace WalkerSim
             {
                 return GetNextPOI(zombie);
             }
-            return _worldZones.GetRandom(_prng);
+            var zone = _worldZones.GetRandomClosest(zombie.pos, _prng, 500.0f);
+            if (zone == null)
+            {
+                zone = _worldZones.GetRandom(_prng);
+            }
+            return zone;
         }
 
         private Vector3 GetTargetPos(Zone target)
@@ -594,6 +635,11 @@ namespace WalkerSim
             return target.GetRandomPos(_prng);
         }
 
+        // This function is called only from the main thread.
+        // This functions checks about every active zombie if they are too far
+        // away from the player if that is the case they will be despawned and
+        // put back into the simulation at the current coordinates.
+        // NOTE: A call must only be made from the main thread.
         private void UpdateActiveZombies()
         {
             var world = GameManager.Instance.World;
@@ -621,7 +667,6 @@ namespace WalkerSim
                     Log.Out("[WalkerSim] Failed to get zombie with entity id {0}", zombie.entityId);
 #endif
                     removeZombie = true;
-                    RespawnInactiveZombie(zombie);
                 }
                 else
                 {
@@ -633,7 +678,6 @@ namespace WalkerSim
                     {
                         deactivatedZombies++;
                         removeZombie = true;
-                        RespawnInactiveZombie(zombie);
                     }
                     else
                     {
@@ -648,12 +692,10 @@ namespace WalkerSim
 
                             world.RemoveEntity(zombie.entityId, EnumRemoveEntityReason.Despawned);
 
-                            lock (_lock)
-                            {
-                                zombie.entityId = -1;
-                                zombie.currentZone = null;
-                                _inactiveZombies.Add(zombie);
-                            }
+                            zombie.entityId = -1;
+                            zombie.currentZone = null;
+
+                            RespawnInactiveZombie(zombie);
                         }
                         else
                         {
@@ -706,27 +748,52 @@ namespace WalkerSim
             return pos;
         }
 
+        private bool ProcessEvent(ZombieAgent zombie, WorldEvent ev)
+        {
+            if (ev.Inflictor == zombie)
+            {
+                // Event was issued by zombie, ignore.
+                return false;
+            }
+
+            if (ev.Type == WorldEventType.Follow && zombie.type != ZombieType.Follower)
+            {
+                return false;
+            }
+
+            // Walk towards event position.
+            var dist = Vector3.Distance(zombie.pos, ev.Pos);
+            if (dist > ev.Radius)
+                return false;
+
+            Vector3 eventDirection = new Vector3();
+
+            eventDirection.x = _prng.Get(-1.0f, 1.0f);
+            eventDirection.z = _prng.Get(-1.0f, 1.0f);
+
+            eventDirection.Normalize();
+            if (ev.Type == WorldEventType.Sound)
+            {
+                // Make them walk towards the sound radius of 75%.
+                eventDirection *= (dist * 0.75f);
+            }
+            else
+            {
+                // Follow events always use the full radius.
+                eventDirection *= ev.Radius;
+            }
+
+            zombie.targetPos = ev.Pos + eventDirection;
+
+            return true;
+        }
+
         private void UpdateTarget(ZombieAgent zombie, WorldEvent ev)
         {
-            if (ev != null)
+            if (ev != null && ProcessEvent(zombie, ev))
             {
-                var dist = Vector3.Distance(zombie.pos, ev.Pos);
-                if (dist <= ev.Radius)
-                {
-                    Vector3 soundDir = new Vector3();
-                    soundDir.x = _prng.Get(-1.0f, 1.0f);
-                    soundDir.z = _prng.Get(-1.0f, 1.0f);
-
-                    soundDir.Normalize();
-                    soundDir *= (dist * 0.75f);
-
-                    zombie.targetPos = ev.Pos + soundDir;
-
-#if DEBUG
-                    Log.Out("Reacting to sound at {0}", ev.Pos);
-#endif
-                    return;
-                }
+                // Event was handled.
+                return;
             }
 
             // If we have an activate target wait for arrival.
@@ -746,7 +813,15 @@ namespace WalkerSim
                 zombie.target = GetNextTarget(zombie);
             }
 
-            zombie.targetPos = GetTargetPos(zombie.target);
+
+            if (zombie.target != null)
+            {
+                zombie.targetPos = zombie.target.GetRandomPos(_prng);
+            }
+            else
+            {
+
+            }
         }
 
         private void UpdateInactiveZombie(ZombieAgent zombie, float dt, WorldEvent ev)
@@ -756,8 +831,15 @@ namespace WalkerSim
             zombie.dir = zombie.targetPos - zombie.pos;
             zombie.dir.Normalize();
 
-            float speed = _worldState.GetZombieSpeed() * dt;
+            float speed = _worldState.GetZombieSpeed() * _walkSpeedScale;
+            speed *= dt;
             zombie.pos = Vector3.MoveTowards(zombie.pos, zombie.targetPos, speed);
+
+            if (zombie.type == ZombieType.Leader &&
+                _prng.Chance(_config.LeaderEventChance))
+            {
+                AddFollowerEvent(zombie.pos, _config.LeaderRadius, zombie);
+            }
         }
 
         private bool CanSpawnActiveZombie()
@@ -775,7 +857,7 @@ namespace WalkerSim
 
         int MaxZombiesPerZone()
         {
-            return MaxAliveZombies / Math.Max(1, ConnectionManager.Instance.Clients.Count);
+            return MaxAliveZombies / _playerZones.Count();
         }
         private void UpdateInactiveZombies(float dt)
         {
@@ -791,11 +873,16 @@ namespace WalkerSim
                 }
             }
 
+            lock (_lock)
+            {
+                // Make sure the population is always full.
+                PopulateInactives(false);
+            }
+
             // Simulate
             int activatedZombies = 0;
             int maxUpdates = _maxZombies;
             int maxPerZone = MaxZombiesPerZone();
-            int numInactive = _inactiveZombies.Count;
 
             WorldEvent ev = null;
             lock (_worldEvents)
@@ -806,7 +893,7 @@ namespace WalkerSim
                 }
             }
 
-            for (int i = 0; i < numInactive; i++)
+            for (int i = 0; ; i++)
             {
                 lock (_lock)
                 {
@@ -868,20 +955,25 @@ namespace WalkerSim
                         break;
                     }
 
-                    // Zombie inside one or more zones will be always removed.
                     if (activatedZombie)
+                    {
+                        // Zombie inside one or more zones will be always removed.
                         removeZombie = true;
+                    }
+                    else
+                    {
+                        var zombiePos = Vector3i.FromVector3Rounded(zombie.pos);
+                        if (!_worldBounds.Contains(zombiePos.ToVector3()))
+                        {
+                            // Zombies that walk out of bounds will be removed and new ones respawn.
+                            removeZombie = true;
+                        }
+                    }
 
                     if (removeZombie)
                     {
                         _inactiveZombies.RemoveAt(i);
                         i--;
-
-                        // If the zombie was not activated begin a new cycle.
-                        if (!activatedZombie)
-                        {
-                            RespawnInactiveZombie(zombie);
-                        }
 
                         // NOTE: This should never happen.
                         if (_inactiveZombies.Count == 0)
@@ -905,6 +997,14 @@ namespace WalkerSim
         {
             if (!_running)
                 return;
+
+            var world = GameManager.Instance.World;
+            if (world == null)
+            {
+                Log.Out("[WalkerSim] (Update) World no longer exists, stopping simulation");
+                Stop();
+                return;
+            }
 
             try
             {
@@ -1015,6 +1115,10 @@ namespace WalkerSim
 
             Log.Out("[WalkerSim] Worker Finished");
             _running = false;
+
+            _playerZones.Clear();
+            _activeZombies.Clear();
+            _inactiveZombies.Clear();
         }
 
         public Vector2i WorldToBitmap(Vector3 pos)
@@ -1092,7 +1196,7 @@ namespace WalkerSim
                 Log.Exception(ex);
             }
         }
-        public void AddSoundEvent(Vector3 pos, float radius)
+        public void AddSoundEvent(Vector3 pos, float radius, object inflictor = null)
         {
             lock (_worldEvents)
             {
@@ -1101,6 +1205,21 @@ namespace WalkerSim
                     Type = WorldEventType.Sound,
                     Pos = pos,
                     Radius = radius,
+                    Inflictor = inflictor,
+                });
+            }
+        }
+
+        public void AddFollowerEvent(Vector3 pos, float radius, object inflictor = null)
+        {
+            lock (_worldEvents)
+            {
+                _worldEvents.Enqueue(new WorldEvent()
+                {
+                    Type = WorldEventType.Follow,
+                    Pos = pos,
+                    Radius = radius,
+                    Inflictor = inflictor,
                 });
             }
         }

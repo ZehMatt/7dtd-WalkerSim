@@ -1,9 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace WalkerSim
@@ -23,8 +19,22 @@ namespace WalkerSim
         public bool target;
     }
 
+    enum ZombieType
+    {
+        Normal,
+        Follower,
+        Leader,
+    }
+
     class ZombieAgent : IComparer, IEquatable<ZombieAgent>
     {
+        public static float[] ZombieTypeChance =
+        {
+            0.3f,
+            0.5f,
+            0.2f,
+        };
+
         public int entityId = -1;
         public int id = -1;
         public int classId = -1;
@@ -34,6 +44,7 @@ namespace WalkerSim
         public Vector3 dir = new Vector3();
         public Zone target = null;
         public Zone currentZone = null;
+        public ZombieType type = ZombieType.Normal;
         int IComparer.Compare(object a, object b)
         {
             return ((ZombieAgent)a).id - ((ZombieAgent)b).id;

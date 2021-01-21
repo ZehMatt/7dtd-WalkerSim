@@ -363,7 +363,7 @@ namespace WalkerSim
             if (initial)
             {
                 // The initial population is placed nearby pois more frequently.
-                var poiChance = 0.8f;
+                var poiChance = _config.POITravellerChance;
 
                 var poi = _prng.Chance(poiChance) ? _pois.GetRandom(_prng) : null;
                 if (poi != null)

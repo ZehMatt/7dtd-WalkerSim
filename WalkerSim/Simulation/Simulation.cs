@@ -5,6 +5,7 @@ using System.Threading;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 using System.IO;
+using System.Globalization;
 
 namespace WalkerSim
 {
@@ -35,8 +36,6 @@ namespace WalkerSim
 
         System.Object _lock = new System.Object();
         static ViewServer _server = new ViewServer();
-
-        Config _config = new Config();
 
         WorldState _worldState = new WorldState();
 
@@ -74,7 +73,7 @@ namespace WalkerSim
 
         public Simulation()
         {
-            _config.Load(ConfigFile);
+            Config.Instance.Load(ConfigFile);
 
             var world = GameManager.Instance.World;
             world.GetWorldExtent(out _worldMins, out _worldMaxs);
@@ -83,26 +82,29 @@ namespace WalkerSim
             float lenY = _worldMins.z < 0 ? _worldMaxs.z + Math.Abs(_worldMins.z) : _worldMaxs.x - Math.Abs(_worldMins.z);
 
             float squareKm = (lenX / 1000.0f) * (lenY / 1000.0f);
-            float populationSize = squareKm * _config.PopulationDensity;
+            float populationSize = squareKm * Config.Instance.PopulationDensity;
             _maxZombies = (int)Math.Floor(populationSize);
+            _walkSpeedScale = Config.Instance.WalkSpeedScale;
 
             Log.Out("Simulation File: {0}", SimulationFile);
             Log.Out("World X: {0}, World Y: {1}, {2}, {3}", lenX, lenY, _worldMins, _worldMaxs);
             Log.Out("Day Time: {0}", DayTimeMin);
             Log.Out("Max Zombies: {0}", _maxZombies);
 
-            if (_config.EnableViewServer)
+#if !DEBUG
+            if (Config.Instance.EnableViewServer)
+#endif
             {
                 Log.Out("Starting server...");
-                if (_server.Start(_config.ViewServerPort))
+                if (_server.Start(Config.Instance.ViewServerPort))
                 {
-                    Log.Out("ViewServer running at port {0}", _config.ViewServerPort);
+                    Log.Out("ViewServer running at port {0}", Config.Instance.ViewServerPort);
                 }
             }
 
             _biomeData.Init();
             _pois.BuildCache();
-            _worldZones.BuildZones(_worldMins, _worldMaxs, _config);
+            _worldZones.BuildZones(_worldMins, _worldMaxs);
 
             _worker.WorkerSupportsCancellation = true;
             _worker.DoWork += BackgroundUpdate;
@@ -131,7 +133,7 @@ namespace WalkerSim
 
             Log.Out("[WalkerSim] Starting worker..");
 
-            if (!_config.Persistent || !Load())
+            if (!Config.Instance.Persistent || !Load())
             {
                 Reset();
             }
@@ -163,7 +165,7 @@ namespace WalkerSim
 
         public void Save()
         {
-            if (!_config.Persistent)
+            if (!Config.Instance.Persistent)
                 return;
 
             try
@@ -173,7 +175,7 @@ namespace WalkerSim
                     BinaryFormatter formatter = new BinaryFormatter();
                     lock (_lock)
                     {
-                        formatter.Serialize(stream, _config);
+                        formatter.Serialize(stream, Config.Instance);
 
                         List<ZombieData> data = new List<ZombieData>();
                         foreach (var zombie in _inactiveZombies)
@@ -225,7 +227,7 @@ namespace WalkerSim
                     BinaryFormatter formatter = new BinaryFormatter();
 
                     Config config = formatter.Deserialize(stream) as Config;
-                    if (!config.Equals(_config))
+                    if (!config.Equals(Config.Instance))
                     {
                         Log.Out("[WalkerSim] Configuration changed, not loading save.");
                         return false;
@@ -366,8 +368,7 @@ namespace WalkerSim
 
             if (initial)
             {
-                // The initial population is placed nearby pois more frequently.
-                var poiChance = _config.POITravellerChance;
+                var poiChance = Config.Instance.POITravellerChance;
 
                 var poi = _prng.Chance(poiChance) ? _pois.GetRandom(_prng) : null;
                 if (poi != null)
@@ -409,15 +410,20 @@ namespace WalkerSim
             return zombie;
         }
 
-        private void RespawnInactiveZombie(ZombieAgent zombie)
+        private void TurnZombieInactive(ZombieAgent zombie)
         {
             lock (_inactiveQueue)
             {
-                zombie.pos = GetRandomBorderPoint();
-                zombie.target = GetNextTarget(zombie);
-                zombie.targetPos = GetTargetPos(zombie.target);
                 _inactiveQueue.Enqueue(zombie);
             }
+        }
+
+        private void RespawnInactiveZombie(ZombieAgent zombie)
+        {
+            zombie.pos = GetRandomBorderPoint();
+            zombie.target = GetNextTarget(zombie);
+            zombie.targetPos = GetTargetPos(zombie.target);
+            TurnZombieInactive(zombie);
         }
 
         private Vector3 GetRandomZonePos(PlayerZone zone)
@@ -578,15 +584,16 @@ namespace WalkerSim
 
         private POIZone GetNextPOI(ZombieAgent zombie)
         {
-            var closest = _pois.GetRandomClosest(zombie.pos, _prng, 5000, 3);
+            var closest = _pois.GetRandomClosest(zombie.pos, _prng, 1500, zombie.visitedZones);
             if (closest == null)
                 return _pois.GetRandom(_prng);
+
             return closest;
         }
 
         private Zone GetNextTarget(ZombieAgent zombie)
         {
-            if (_prng.Chance(_config.POITravellerChance))
+            if (_prng.Chance(Config.Instance.POITravellerChance))
             {
                 return GetNextPOI(zombie);
             }
@@ -598,6 +605,11 @@ namespace WalkerSim
             return target.GetRandomPos(_prng);
         }
 
+        // This function is called only from the main thread.
+        // This functions checks about every active zombie if they are too far
+        // away from the player if that is the case they will be despawned and
+        // put back into the simulation at the current coordinates.
+        // NOTE: A call must only be made from the main thread.
         private void UpdateActiveZombies()
         {
             var world = GameManager.Instance.World;
@@ -652,12 +664,10 @@ namespace WalkerSim
 
                             world.RemoveEntity(zombie.entityId, EnumRemoveEntityReason.Despawned);
 
-                            lock (_lock)
-                            {
-                                zombie.entityId = -1;
-                                zombie.currentZone = null;
-                                _inactiveZombies.Add(zombie);
-                            }
+                            zombie.entityId = -1;
+                            zombie.currentZone = null;
+
+                            TurnZombieInactive(zombie);
                         }
                         else
                         {
@@ -683,12 +693,9 @@ namespace WalkerSim
 
                 if (removeZombie)
                 {
-                    lock (_lock)
-                    {
-                        _activeZombies.RemoveAt(i);
-                        if (_activeZombies.Count == 0)
-                            break;
-                    }
+                    _activeZombies.RemoveAt(i);
+                    if (_activeZombies.Count == 0)
+                        break;
                     i--;
                 }
             }
@@ -737,9 +744,11 @@ namespace WalkerSim
             if (!zombie.ReachedTarget())
                 return;
 
+            zombie.AddVisitedZone(zombie.target);
+
             if (_worldState.IsBloodMoon())
             {
-                zombie.target = _playerZones.GetRandomClosest(zombie.pos, _prng, 200.0f);
+                zombie.target = _playerZones.GetRandomClosest(zombie.pos, _prng, 200.0f, null);
                 if (zombie.target == null)
                 {
                     zombie.target = GetNextTarget(zombie);
@@ -768,15 +777,10 @@ namespace WalkerSim
 
         private bool CanSpawnActiveZombie()
         {
-            lock (_spawnQueue)
-            {
-                int alive = GameStats.GetInt(EnumGameStats.EnemyCount);
-                if (alive >= MaxAliveZombies)
-                    return false;
-                if (_activeZombies.Count + _spawnQueue.Count < MaxAliveZombies)
-                    return true;
-            }
-            return false;
+            int alive = GameStats.GetInt(EnumGameStats.EnemyCount);
+            if (alive + 1 >= MaxAliveZombies)
+                return false;
+            return true;
         }
 
         int MaxZombiesPerZone()
@@ -937,13 +941,16 @@ namespace WalkerSim
             double totalElapsed = 0.0;
             double dtAverage = 0.0;
             double nextReport = 10.0;
-            float updateRate = 1.0f / (float)_config.UpdateInterval;
+            float updateRate = 1.0f / (float)Config.Instance.UpdateInterval;
 
             BackgroundWorker worker = sender as BackgroundWorker;
             while (worker.CancellationPending == false)
             {
-                bool isPaused = !(_playerZones.HasPlayers() || !_config.PauseWithoutPlayers);
-
+#if DEBUG
+                bool isPaused = false;
+#else
+                bool isPaused = !(_playerZones.HasPlayers() || !Config.Instance.PauseWithoutPlayers);
+#endif
                 double dt = updateWatch.ElapsedMicroseconds / 1000000.0;
                 updateWatch.ResetAndRestart();
 
@@ -1050,7 +1057,7 @@ namespace WalkerSim
                 data.h = 512;
                 data.mapW = Utils.Distance(_worldMins.x, _worldMaxs.x);
                 data.mapH = Utils.Distance(_worldMins.z, _worldMaxs.z);
-                data.density = _config.PopulationDensity;
+                data.density = Config.Instance.PopulationDensity;
                 data.zombieSpeed = _worldState.GetZombieSpeed();
                 data.timescale = _timeScale;
 

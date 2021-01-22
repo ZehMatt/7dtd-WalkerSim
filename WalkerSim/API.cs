@@ -16,6 +16,9 @@ namespace WalkerSim
         public static Simulation _sim = null;
         static DateTime _nextOutputTime = DateTime.Now;
         static MicroStopwatch _stopWatch = new MicroStopwatch();
+        public API()
+        {
+        }
 
         public void InitMod()
         {
@@ -129,4 +132,3 @@ namespace WalkerSim
         }
     }
 }
-

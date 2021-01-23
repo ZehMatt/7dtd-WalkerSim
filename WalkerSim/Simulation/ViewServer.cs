@@ -6,16 +6,22 @@ using System.Net.Sockets;
 
 namespace WalkerSim
 {
-    struct ViewerClient
+    public class ViewServer
     {
-        public Socket sock;
-        public bool disconnected;
-    }
+        public class Client
+        {
+            public Socket sock;
+            public bool disconnected;
+        }
 
-    class ViewServer
-    {
         private Socket _listener = null;
-        private List<ViewerClient> _clients = new List<ViewerClient>();
+        private List<Client> _clients = new List<Client>();
+
+        public delegate void OnClientConnectedDelegate(ViewServer sender, Client client);
+        public delegate void OnClientDisconnectedDelegate(ViewServer sender, Client client);
+
+        public event OnClientConnectedDelegate OnClientConnected;
+        public event OnClientDisconnectedDelegate OnClientDisconnected;
 
         public bool Start(int port)
         {
@@ -45,12 +51,18 @@ namespace WalkerSim
 
             try
             {
-                ViewerClient client = new ViewerClient();
+                Client client = new Client();
                 client.sock = listener.EndAccept(ar);
                 client.disconnected = false;
+
                 _clients.Add(client);
 
-                OnClientConnected(client);
+                Log.Out("[WalkerSim] Client connected {0}", client.sock.RemoteEndPoint);
+
+                if (OnClientConnected != null)
+                {
+                    OnClientConnected.Invoke(this, client);
+                }
 
                 // Accept next.
                 _listener.BeginAccept(new AsyncCallback(AcceptCallback), _listener);
@@ -63,21 +75,35 @@ namespace WalkerSim
 
         public void Update()
         {
-            // Update
-            for (int i = 0; i < _clients.Count; i++)
+            try
             {
-                ViewerClient client = _clients[i];
-                if (client.disconnected || client.sock.Connected == false)
+                // Update
+                for (int i = 0; i < _clients.Count; i++)
                 {
-                    OnClientDisconnected(client);
+                    Client client = _clients[i];
+                    if (client.disconnected)
+                    {
+                        Log.Out("[WalkerSim] Client disconnected {0}", client.sock.RemoteEndPoint);
 
-                    _clients.RemoveAt(i);
-                    if (_clients.Count == 0)
-                        break;
+                        if (OnClientDisconnected != null)
+                        {
+                            OnClientDisconnected.Invoke(this, client);
+                        }
 
-                    i--;
+                        _clients.RemoveAt(i);
+                        if (_clients.Count == 0)
+                            break;
+
+                        i--;
+                    }
                 }
             }
+            catch (Exception ex)
+            {
+                Log.Out("Server::Update caused exception");
+                Log.Exception(ex);
+            }
+
         }
 
         public bool HasClients()
@@ -85,22 +111,78 @@ namespace WalkerSim
             return _clients.Count > 0;
         }
 
-        private void Send(ViewerClient client, byte[] data, int length)
+        private void Send(Client client, byte[] data, int length)
         {
-            var sock = client.sock;
-            sock.BeginSend(data, 0, length, 0, new AsyncCallback(SendCallback), client);
+            if (client.disconnected)
+                return;
+
+            try
+            {
+                var sock = client.sock;
+                sock.BeginSend(data, 0, length, 0, new AsyncCallback(SendCallback), client);
+            }
+            catch (Exception ex)
+            {
+                client.disconnected = true;
+#if DEBUG
+                Log.Out("ViewServer::Send caused exception");
+                Log.Exception(ex);
+#endif
+            }
+
         }
 
         private void SendCallback(IAsyncResult ar)
         {
-            ViewerClient client = (ViewerClient)ar.AsyncState;
+            Client client = (Client)ar.AsyncState;
             try
             {
                 client.sock.EndSend(ar);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+#if DEBUG
+                if (!client.disconnected)
+                {
+                    Log.Out("ViewServer::SendCallback caused exception");
+                    Log.Exception(ex);
+                }
+#endif
                 client.disconnected = true;
+            }
+        }
+
+        public void SendData(Client cl, Viewer.DataType type, Viewer.IWalkerSimMessage data)
+        {
+            if (cl == null)
+            {
+                Broadcast(type, data);
+                return;
+            }
+
+            MemoryStream streamBody = new MemoryStream();
+            data.Serialize(streamBody);
+
+            Viewer.Header header = new Viewer.Header();
+            header.type = (int)type;
+            header.len = (int)streamBody.Length;
+
+            MemoryStream streamHeader = new MemoryStream();
+            header.Serialize(streamHeader);
+
+            try
+            {
+                Send(cl, streamHeader.GetBuffer(), (int)streamHeader.Length);
+                Send(cl, streamBody.GetBuffer(), (int)streamBody.Length);
+            }
+            catch (Exception ex)
+            {
+                cl.disconnected = true;
+
+#if DEBUG
+                Log.Out("ViewServer::SendData caused exception");
+                Log.Exception(ex);
+#endif
             }
         }
 
@@ -121,28 +203,22 @@ namespace WalkerSim
 
             try
             {
-                //Log.Out("Sending Packet: {0}, bytes: {1}", header.type, header.len);
-                foreach (var client in _clients)
+                lock (_clients)
                 {
-                    //client.sock.Send(streamHeader.GetBuffer(), (int)streamHeader.Length, SocketFlags.None);
-                    Send(client, streamHeader.GetBuffer(), (int)streamHeader.Length);
-                    //client.sock.Send(streamBody.GetBuffer(), (int)streamBody.Length, SocketFlags.None);
-                    Send(client, streamBody.GetBuffer(), (int)streamBody.Length);
+                    //Log.Out("Sending Packet: {0}, bytes: {1}", type.ToString(), header.len);
+                    foreach (var client in _clients)
+                    {
+                        Send(client, streamHeader.GetBuffer(), (int)streamHeader.Length);
+                        Send(client, streamBody.GetBuffer(), (int)streamBody.Length);
+                    }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Log.Out("ViewServer::Broadcast caused exception");
+                Log.Exception(ex);
             }
         }
 
-        private void OnClientConnected(ViewerClient cl)
-        {
-            Log.Out("[DebugServer] Client connected {0}", cl.sock.RemoteEndPoint);
-        }
-
-        private void OnClientDisconnected(ViewerClient cl)
-        {
-            Log.Out("[DebugServer] Client disconnected {0}", cl.sock.RemoteEndPoint);
-        }
     }
 }

@@ -7,6 +7,18 @@
   <UpdateInterval>60</UpdateInterval>
 
   <!--
+  This allows to reserve a certain percentage of the maximum allowed enemies. This ensures
+  that sleeper zombies have a chance to spawn.
+  The maximum zombies the simulation can spawn is MaxSpawnedZombies - (MaxSpawnedZombies * Reserved)
+  -->
+  <ReservedSpawnSlots>0.5</ReservedSpawnSlots>
+
+  <!--
+  This will pause the simulation during blood moon.
+  -->
+  <PauseDuringBloodmon>false</PauseDuringBloodmon>
+
+  <!--
   Halts the simulation if no players are on the server, set to false for a continious simulation.
   -->
   <PauseWithoutPlayers>true</PauseWithoutPlayers>

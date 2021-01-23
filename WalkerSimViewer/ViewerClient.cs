@@ -1,174 +1,191 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Net;
-using System.Net.Sockets;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+using System.Net.Sockets;
 
 namespace WalkerSim
 {
-	class Client
-	{
-		public Socket sock = new Socket(SocketType.Stream, ProtocolType.Tcp);
-		public const int BUFFER_SIZE = 1024;
-		public byte[] tmpBuffer = new byte[BUFFER_SIZE];
-		public MemoryStream buffer = new MemoryStream();
-		public Viewer.Header header = new Viewer.Header();
-	}
+    class Client
+    {
+        public Socket sock = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        public const int BUFFER_SIZE = 1024;
+        public byte[] tmpBuffer = new byte[BUFFER_SIZE];
+        public MemoryStream buffer = new MemoryStream();
+        public Viewer.Header header = new Viewer.Header();
+    }
 
-	class ViewerClient
-	{
-		private Client _client = new Client();
-		private bool _connecting = false;
-		private string _host = "";
-		private int _port = 0;
-		private Viewer.MapData _mapData = null;
+    public class State
+    {
+        public Viewer.State worldInfo = new Viewer.State();
+        public Viewer.WorldZones worldZones = new Viewer.WorldZones();
+        public Viewer.POIZones poiZones = new Viewer.POIZones();
+        public Viewer.PlayerZones playerZones = new Viewer.PlayerZones();
+        public Viewer.ZombieList inactive = new Viewer.ZombieList();
+        public Viewer.ZombieList active = new Viewer.ZombieList();
+    }
 
-		public void Update()
-		{
-		}
+    class ViewerClient
+    {
+        private Client _client = new Client();
+        private bool _connecting = false;
+        private string _host = "";
+        private int _port = 0;
+        private State _worldState;
 
-		public Viewer.MapData GetMapData()
-		{
-			if (_connecting || !_client.sock.Connected)
-				return null;
+        public void Update()
+        {
+        }
 
-			return _mapData;
-		}
+        public State GetMapData()
+        {
+            if (_connecting || !_client.sock.Connected)
+                return null;
 
-		public bool Connect(string host, int port)
-		{
-			if (_connecting || _client.sock.Connected)
-				return true;
+            return _worldState;
+        }
 
-			_client = new Client();
-			_host = host;
-			_port = port;
-			try
-			{
-				_connecting = true;
-				_client.sock.BeginConnect(_host, _port, new AsyncCallback(ConnectCallback), _client);
-			}
-			catch (Exception)
-			{
-				return false;
-			}
+        public bool Connect(string host, int port)
+        {
+            if (_connecting || _client.sock.Connected)
+                return true;
 
-			return _connecting;
-		}
+            _client = new Client();
+            _host = host;
+            _port = port;
+            try
+            {
+                _connecting = true;
+                _client.sock.BeginConnect(_host, _port, new AsyncCallback(ConnectCallback), _client);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
 
-		public bool Disconnect()
-		{
-			if (!IsConnecting() && !IsConnected())
-				return false;
-			try
-			{
-				_client.sock.Close();
-				_connecting = false;
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-			return true;
-		}
+            return _connecting;
+        }
 
-		private void ConnectCallback(IAsyncResult ar)
-		{
-			Client client = (Client)ar.AsyncState;
-			try
-			{
-				var sock = client.sock;
-				sock.EndConnect(ar);
+        public bool Disconnect()
+        {
+            if (!IsConnecting() && !IsConnected())
+                return false;
+            try
+            {
+                _client.sock.Close();
+                _connecting = false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return true;
+        }
 
-				sock.BeginReceive(client.tmpBuffer, 0, Client.BUFFER_SIZE, 0, new AsyncCallback(ReceiveCallback), client);
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("Exception: {0}", ex.Message);
-			}
-			_connecting = false;
-		}
+        private void ConnectCallback(IAsyncResult ar)
+        {
+            Client client = (Client)ar.AsyncState;
+            try
+            {
+                var sock = client.sock;
+                sock.EndConnect(ar);
 
-		private void ReceiveCallback(IAsyncResult ar)
-		{
-			Client client = (Client)ar.AsyncState;
+                sock.BeginReceive(client.tmpBuffer, 0, Client.BUFFER_SIZE, 0, new AsyncCallback(ReceiveCallback), client);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception: {0}", ex.Message);
+            }
+            _connecting = false;
+        }
 
-			try
-			{
-				var sock = client.sock;
+        private void ReceiveCallback(IAsyncResult ar)
+        {
+            Client client = (Client)ar.AsyncState;
 
-				int bytesRead = sock.EndReceive(ar);
-				if (bytesRead > 0)
-				{
-					var buffer = client.buffer;
-					buffer.Seek(0, SeekOrigin.End);
-					buffer.Write(client.tmpBuffer, 0, bytesRead);
+            try
+            {
+                var sock = client.sock;
 
-					ProcessBuffer(ref client);
+                int bytesRead = sock.EndReceive(ar);
+                if (bytesRead > 0)
+                {
+                    var buffer = client.buffer;
+                    buffer.Seek(0, SeekOrigin.End);
+                    buffer.Write(client.tmpBuffer, 0, bytesRead);
 
-					sock.BeginReceive(client.tmpBuffer, 0, Client.BUFFER_SIZE, 0, new AsyncCallback(ReceiveCallback), client);
-				}
-			}
-			catch (Exception)
-			{
-				//throw;
-			}
-		}
+                    ProcessBuffer(ref client);
 
-		public bool IsConnecting()
-		{
-			return _connecting;
-		}
+                    sock.BeginReceive(client.tmpBuffer, 0, Client.BUFFER_SIZE, 0, new AsyncCallback(ReceiveCallback), client);
+                }
+            }
+            catch (Exception)
+            {
+                //throw;
+            }
+        }
 
-		public bool IsConnected()
-		{
-			return _connecting == false && _client.sock.Connected;
-		}
+        public bool IsConnecting()
+        {
+            return _connecting;
+        }
 
-		private void ProcessBuffer(ref Client client)
-		{
-			var header = client.header;
+        public bool IsConnected()
+        {
+            return _connecting == false && _client.sock.Connected;
+        }
 
-			var buffer = client.buffer;
-			buffer.Seek(0, SeekOrigin.Begin);
+        private void ProcessBuffer(ref Client client)
+        {
+            var header = client.header;
 
-			try
-			{
-				// Read header.
-				header.Deserialize(buffer);
-				if (header.len > buffer.Length - buffer.Position)
-					return;
+            var buffer = client.buffer;
+            buffer.Seek(0, SeekOrigin.Begin);
 
-				switch ((Viewer.DataType)header.type)
-				{
-					case Viewer.DataType.MapData:
-						Viewer.MapData mapData = new Viewer.MapData();
-						mapData.Deserialize(buffer);
-						OnMapData(mapData);
-						break;
-					default:
-						break;
-				}
+            try
+            {
+                // Read header.
+                header.Deserialize(buffer);
+                if (header.len > buffer.Length - buffer.Position)
+                    return;
 
-				// Discard current packet.
-				MemoryStream newBuffer = new MemoryStream();
-				newBuffer.Write(buffer.GetBuffer(), (int)buffer.Position, (int)(buffer.Length - buffer.Position));
+                if (_worldState == null)
+                    _worldState = new State();
 
-				// Set buffer.
-				client.buffer = newBuffer;
-			}
-			catch (Exception)
-			{
-			}
-		}
+                Viewer.DataType messageType = (Viewer.DataType)header.type;
+                switch (messageType)
+                {
+                    case Viewer.DataType.Info:
+                        _worldState.worldInfo.Deserialize(buffer);
+                        break;
+                    case Viewer.DataType.WorldZones:
+                        _worldState.worldZones.Deserialize(buffer);
+                        break;
+                    case Viewer.DataType.POIZones:
+                        _worldState.poiZones.Deserialize(buffer);
+                        break;
+                    case Viewer.DataType.PlayerZones:
+                        _worldState.playerZones.Deserialize(buffer);
+                        break;
+                    case Viewer.DataType.ActiveZombies:
+                        _worldState.active.Deserialize(buffer);
+                        break;
+                    case Viewer.DataType.InactiveZombies:
+                        _worldState.inactive.Deserialize(buffer);
+                        break;
+                    default:
+                        break;
+                }
 
-		private void OnMapData(WalkerSim.Viewer.MapData mapData)
-		{
-			_mapData = mapData;
-		}
-	}
+                // Discard current packet.
+                MemoryStream newBuffer = new MemoryStream();
+                newBuffer.Write(buffer.GetBuffer(), (int)buffer.Position, (int)(buffer.Length - buffer.Position));
+
+                // Set buffer.
+                client.buffer = newBuffer;
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+    }
 }

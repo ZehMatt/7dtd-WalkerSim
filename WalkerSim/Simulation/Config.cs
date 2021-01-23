@@ -22,6 +22,9 @@ namespace WalkerSim
         public bool EnableViewServer { get; private set; }
         public int ViewServerPort { get; private set; }
         public float WalkSpeedScale { get; private set; }
+        public float ReservedSpawns { get; private set; }
+        public bool PauseDuringBloodmon { get; private set; }
+
         public Dictionary<string, float> SoundDistance { get; private set; }
 
         public Config()
@@ -34,6 +37,8 @@ namespace WalkerSim
             PopulationDensity = 40;
             Persistent = true;
             WalkSpeedScale = 1.0f;
+            ReservedSpawns = 0.5f;
+            PauseDuringBloodmon = false;
             SoundDistance = new Dictionary<string, float>();
 
 #if DEBUG
@@ -60,6 +65,10 @@ namespace WalkerSim
             if (WalkSpeedScale != other.WalkSpeedScale)
                 return false;
             if (SoundDistance != other.SoundDistance)
+                return false;
+            if (ReservedSpawns != other.ReservedSpawns)
+                return false;
+            if (PauseDuringBloodmon != other.PauseDuringBloodmon)
                 return false;
             return true;
         }
@@ -133,7 +142,7 @@ namespace WalkerSim
                         Log.Out("[WalkerSim] {0} = {1}", "WorldZoneDivider", WorldZoneDivider);
                         break;
                     case "POITravellerChance":
-                        POITravellerChance = float.Parse(node.InnerText);
+                        POITravellerChance = MathUtils.Clamp(float.Parse(node.InnerText), 0.0f, 1.0f);
                         Log.Out("[WalkerSim] {0} = {1}", "POITravellerChance", POITravellerChance);
                         break;
                     case "PopulationDensity":
@@ -143,6 +152,10 @@ namespace WalkerSim
                     case "WalkSpeedScale":
                         WalkSpeedScale = float.Parse(node.InnerText);
                         Log.Out("[WalkerSim] {0} = {1}", "WalkSpeedScale", WalkSpeedScale);
+                        break;
+                    case "ReservedSpawnSlots":
+                        ReservedSpawns = MathUtils.Clamp(float.Parse(node.InnerText), 0.0f, 1.0f);
+                        Log.Out("[WalkerSim] {0} = {1}", "ReservedSpawns", ReservedSpawns);
                         break;
                     case "SoundInfo":
                         ProcessSoundInfo(node);

@@ -28,6 +28,9 @@ namespace WalkerSim
 
     public class Simulation
     {
+        const int MaxZombieSpawnsPerTick = 2;
+        const ulong MinZombieLifeTime = 120; // 2 in-game minutes.
+
         static int DayTimeMin = GamePrefs.GetInt(EnumGamePrefs.DayNightLength);
         static int MaxAliveZombies = GamePrefs.GetInt(EnumGamePrefs.MaxSpawnedZombies);
 
@@ -87,7 +90,7 @@ namespace WalkerSim
             _walkSpeedScale = Config.Instance.WalkSpeedScale;
 
             Log.Out("Simulation File: {0}", SimulationFile);
-            Log.Out("World X: {0}, World Y: {1}, {2}, {3}", lenX, lenY, _worldMins, _worldMaxs);
+            Log.Out("World X: {0}, World Y: {1} -- {2}, {3}", lenX, lenY, _worldMins, _worldMaxs);
             Log.Out("Day Time: {0}", DayTimeMin);
             Log.Out("Max Zombies: {0}", _maxZombies);
 
@@ -402,8 +405,7 @@ namespace WalkerSim
                 zombie.pos = GetRandomBorderPoint();
             }
 
-            zombie.target = GetNextTarget(zombie);
-            zombie.targetPos = GetTargetPos(zombie.target);
+            zombie.state = ZombieAgent.State.Idle;
 
             _inactiveZombies.Add(zombie);
 
@@ -412,6 +414,7 @@ namespace WalkerSim
 
         private void TurnZombieInactive(ZombieAgent zombie)
         {
+            zombie.state = ZombieAgent.State.Idle;
             lock (_inactiveQueue)
             {
                 _inactiveQueue.Enqueue(zombie);
@@ -421,8 +424,6 @@ namespace WalkerSim
         private void RespawnInactiveZombie(ZombieAgent zombie)
         {
             zombie.pos = GetRandomBorderPoint();
-            zombie.target = GetNextTarget(zombie);
-            zombie.targetPos = GetTargetPos(zombie.target);
             TurnZombieInactive(zombie);
         }
 
@@ -533,6 +534,7 @@ namespace WalkerSim
 
             zombie.entityId = zombieEnt.entityId;
             zombie.currentZone = zone;
+            zombie.spawnTime = world.GetWorldTime();
 
             zone.numZombies++;
 
@@ -549,6 +551,8 @@ namespace WalkerSim
 
         private void RequestActiveZombie(ZombieAgent zombie, PlayerZone zone)
         {
+            zombie.state = ZombieAgent.State.Active;
+
             ZombieSpawnRequest spawn = new ZombieSpawnRequest();
             spawn.zombie = zombie;
             spawn.zone = zone;
@@ -560,7 +564,7 @@ namespace WalkerSim
 
         private void ProcessSpawnQueue()
         {
-            for (; ; )
+            for (int i = 0; i < MaxZombieSpawnsPerTick; i++)
             {
                 ZombieSpawnRequest zombieSpawn = null;
                 lock (_spawnQueue)
@@ -621,6 +625,8 @@ namespace WalkerSim
                 bool removeZombie = false;
 
                 var zombie = _activeZombies[i];
+                var lifeTime = world.GetWorldTime() - zombie.spawnTime;
+
                 var currentZone = zombie.currentZone as PlayerZone;
                 if (currentZone != null)
                 {
@@ -628,6 +634,7 @@ namespace WalkerSim
                     if (currentZone.numZombies < 0)
                         currentZone.numZombies = 0;
                 }
+                zombie.currentZone = null;
 
                 Vector3 oldPos = new Vector3 { x = zombie.pos.x, y = zombie.pos.y, z = zombie.pos.z };
                 EntityZombie ent = world.GetEntity(zombie.entityId) as EntityZombie;
@@ -654,7 +661,7 @@ namespace WalkerSim
                     else
                     {
                         List<PlayerZone> zones = _playerZones.FindAllByPos2D(ent.GetPosition());
-                        if (zones.Count == 0)
+                        if (zones.Count == 0 && lifeTime >= MinZombieLifeTime)
                         {
 #if DEBUG
                             Log.Out("[WalkerSim] Zombie {0} out of range, turning inactive", ent);
@@ -671,7 +678,6 @@ namespace WalkerSim
                         }
                         else
                         {
-                            zombie.currentZone = null;
                             foreach (var zone in zones)
                             {
                                 if (zone.numZombies + 1 < maxPerZone)
@@ -680,12 +686,6 @@ namespace WalkerSim
                                     zombie.currentZone = zone;
                                     break;
                                 }
-                            }
-                            if (zombie.currentZone == null)
-                            {
-#if DEBUG
-                                Log.Out("Unable to assign zone for Zombie {0}, all zones full", ent);
-#endif
                             }
                         }
                     }
@@ -717,34 +717,41 @@ namespace WalkerSim
             return pos;
         }
 
-        private void UpdateTarget(ZombieAgent zombie, WorldEvent ev)
+        private void ProcessWorldEvent(ZombieAgent zombie, WorldEvent ev)
         {
-            if (ev != null)
-            {
-                var dist = Vector3.Distance(zombie.pos, ev.Pos);
-                if (dist <= ev.Radius)
-                {
-                    Vector3 soundDir = new Vector3();
-                    soundDir.x = _prng.Get(-1.0f, 1.0f);
-                    soundDir.z = _prng.Get(-1.0f, 1.0f);
-
-                    soundDir.Normalize();
-                    soundDir *= (dist * 0.75f);
-
-                    zombie.targetPos = ev.Pos + soundDir;
-
-#if DEBUG
-                    Log.Out("Reacting to sound at {0}", ev.Pos);
-#endif
-                    return;
-                }
-            }
-
-            // If we have an activate target wait for arrival.
-            if (!zombie.ReachedTarget())
+            if (ev == null)
                 return;
 
-            zombie.AddVisitedZone(zombie.target);
+            var dist = Vector3.Distance(zombie.pos, ev.Pos);
+            if (dist <= ev.Radius)
+            {
+                Vector3 soundDir = new Vector3();
+                soundDir.x = _prng.Get(-1.0f, 1.0f);
+                soundDir.z = _prng.Get(-1.0f, 1.0f);
+
+                soundDir.Normalize();
+                soundDir *= (dist * 0.75f);
+
+                zombie.targetPos = ev.Pos + soundDir;
+                zombie.target = _worldZones.FindByPos2D(zombie.targetPos);
+
+                zombie.state = ZombieAgent.State.Investigating;
+#if DEBUG
+                Log.Out("Reacting to sound at {0}", ev.Pos);
+#endif
+            }
+        }
+
+        private void UpdateTarget(ZombieAgent zombie)
+        {
+            if (zombie.state != ZombieAgent.State.Idle)
+            {
+                // If we have an activate target wait for arrival.
+                if (!zombie.ReachedTarget())
+                    return;
+
+                zombie.AddVisitedZone(zombie.target);
+            }
 
             if (_worldState.IsBloodMoon())
             {
@@ -760,12 +767,16 @@ namespace WalkerSim
             }
 
             zombie.targetPos = GetTargetPos(zombie.target);
+            zombie.state = ZombieAgent.State.Wandering;
         }
 
-        private void UpdateInactiveZombie(ZombieAgent zombie, float dt, WorldEvent ev)
+        void UpdateWalking(ZombieAgent zombie, float dt)
         {
-            UpdateTarget(zombie, ev);
-
+#if true
+            // Test investigation.
+            if (zombie.state != ZombieAgent.State.Investigating)
+                return;
+#endif
             zombie.dir = zombie.targetPos - zombie.pos;
             zombie.dir.Normalize();
 
@@ -773,6 +784,13 @@ namespace WalkerSim
             speed *= dt;
 
             zombie.pos = Vector3.MoveTowards(zombie.pos, zombie.targetPos, speed);
+        }
+
+        private void UpdateInactiveZombie(ZombieAgent zombie, float dt, WorldEvent ev)
+        {
+            ProcessWorldEvent(zombie, ev);
+            UpdateTarget(zombie);
+            UpdateWalking(zombie, dt);
         }
 
         private bool CanSpawnActiveZombie()
@@ -789,8 +807,6 @@ namespace WalkerSim
         }
         private void UpdateInactiveZombies(float dt)
         {
-            //Log.Out("[WalkerSim] UpdateInactiveZombies");
-
             // Repopulate
             lock (_inactiveZombies)
             {

@@ -23,6 +23,13 @@ namespace WalkerSim
     class ZombieAgent : IComparer, IEquatable<ZombieAgent>
     {
         const int MaxVisitedHistory = 5;
+        public enum State
+        {
+            Idle,
+            Wandering,
+            Investigating,
+            Active,
+        }
 
         public int entityId = -1;
         public int id = -1;
@@ -34,6 +41,8 @@ namespace WalkerSim
         public Zone target = null;
         public Zone currentZone = null;
         public List<Zone> visitedZones = new List<Zone>();
+        public State state = State.Idle;
+        public ulong spawnTime = 0;
 
         int IComparer.Compare(object a, object b)
         {

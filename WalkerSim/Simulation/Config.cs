@@ -129,6 +129,10 @@ namespace WalkerSim
                         PauseWithoutPlayers = ToBool(node.InnerText);
                         Log.Out("[WalkerSim] {0} = {1}", "PauseWithoutPlayers", PauseWithoutPlayers);
                         break;
+                    case "PauseDuringBloodmon":
+                        PauseDuringBloodmon = ToBool(node.InnerText);
+                        Log.Out("[WalkerSim] {0} = {1}", "PauseDuringBloodmon", PauseDuringBloodmon);
+                        break;
                     case "SpinupTicks":
                         SpinupTicks = int.Parse(node.InnerText);
                         Log.Out("[WalkerSim] {0} = {1}", "SpinupTicks", SpinupTicks);

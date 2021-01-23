@@ -1040,10 +1040,7 @@ namespace WalkerSim
 
                 if (_accumulator < updateRate)
                 {
-                    if (isPaused)
-                        System.Threading.Thread.Sleep(100);
-                    else
-                        System.Threading.Thread.Sleep(1);
+                    System.Threading.Thread.Sleep(isPaused ? 100 : 1);
                 }
                 else
                 {

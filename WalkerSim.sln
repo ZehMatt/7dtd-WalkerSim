@@ -7,11 +7,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WalkerSim", "WalkerSim\Walk
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WalkerSimViewer", "WalkerSimViewer\WalkerSimViewer.csproj", "{2A781315-0990-4920-AA73-0B352AFDD6AE}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "ViewData", "ViewData\ViewData.shproj", "{BC60C545-083A-4372-A84B-A190BB686DB4}"
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "ViewData", "ViewData\ViewData.shproj", "{7BC71075-D62F-4C9A-9E17-165BF2BC1F57}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		ViewData\ViewData.projitems*{2a781315-0990-4920-aa73-0b352afdd6ae}*SharedItemsImports = 4
+		ViewData\ViewData.projitems*{7bc71075-d62f-4c9a-9e17-165bf2bc1f57}*SharedItemsImports = 13
 		ViewData\ViewData.projitems*{fcf1805a-114c-45df-8595-31d38a982f63}*SharedItemsImports = 4
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

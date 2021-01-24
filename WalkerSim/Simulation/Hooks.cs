@@ -25,32 +25,12 @@ namespace WalkerSim
         // Returns the radius for a given sound name in meters.
         static float GetSoundRadius(string name)
         {
-            switch (name)
+            float distance = 0.0f;
+            if (Config.Instance.SoundDistance.TryGetValue(name, out distance))
             {
-                case "pistol_fire":
-                case "44magnum_fire":
-                case "mp5_fire":
-                case "ak47_fire":
-                case "sniperrifle_fire":
-                case "pump_shotgun_fire":
-                case "autoshotgun_fire":
-                case "m136_fire":
-                case "explosion_grenade":
-                case "sharpshooter_fire":
-                case "desertvulture_fire":
-                case "blunderbuss_fire":
-                case "tacticalar_fire":
-                case "explosion1":
-                    return 500.0f;
-                case "ak47_s_fire":
-                case "pistol_s_fire":
-                case "sniperrifle_s_fire":
-                case "mp5_s_fire":
-                case "pump_shotgun_s_fire":
-                case "hunting_rifle_s_fire":
-                    return 100.0f;
+                return distance;
             }
-            return 1.0f;
+            return 0.0f;
         }
 
         static bool Prefix(Entity instigator, Vector3 position, string clipName, float volumeScale)
@@ -61,7 +41,7 @@ namespace WalkerSim
             float radius = GetSoundRadius(clipName);
 
             var simulation = API._sim;
-            if (simulation != null)
+            if (simulation != null && radius != 0.0f)
             {
                 simulation.AddSoundEvent(position, radius);
             }
@@ -81,7 +61,7 @@ namespace WalkerSim
         static bool Prefix(bool feral)
         {
 #if DEBUG
-            Log.Out("[WalkerSim] Preventing horde spawn");
+            //Log.Out("[WalkerSim] Preventing horde spawn");
 #endif
             // Prevent hordes from spawning.
             return false;
@@ -96,7 +76,7 @@ namespace WalkerSim
         static void Prefix(string _spawnerName, ref bool _bSpawnEnemyEntities, ChunkAreaBiomeSpawnData _chunkBiomeSpawnData)
         {
 #if DEBUG
-            Log.Out("[WalkerSim] Preventing biome spawn");
+            //Log.Out("[WalkerSim] Preventing biome spawn");
 #endif
             _bSpawnEnemyEntities = false;
         }

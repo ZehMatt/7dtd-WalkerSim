@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace WalkerSim
@@ -16,7 +12,6 @@ namespace WalkerSim
         public Vector3 minsSpawnBlock = Vector3.zero;
         public Vector3 maxsSpawnBlock = Vector3.zero;
         public Vector3 center = Vector3.zero;
-        public Bounds triggerBounds = new Bounds();
         public int numZombies = 0;
         public int entityId = -1;
 
@@ -84,11 +79,10 @@ namespace WalkerSim
     public class PlayerZoneManager : ZoneManager<PlayerZone>
     {
         static int ChunkViewDim = GamePrefs.GetInt(EnumGamePrefs.ServerMaxAllowedViewDistance);
-        static Vector3 ChunkSize = new Vector3(16, 256, 16);
 
+        static Vector3 ChunkSize = new Vector3(16, 256, 16);
         static Vector3 VisibleBox = ChunkSize * ChunkViewDim;
         static Vector3 SpawnBlockBox = new Vector3(VisibleBox.x - 32, VisibleBox.y - 32, VisibleBox.z - 32);
-        static Vector3 TriggerBounds = new Vector3(16, 3, 16);
 
         public PlayerZoneManager()
         {
@@ -144,7 +138,6 @@ namespace WalkerSim
             ply.minsSpawnBlock = pos - (SpawnBlockBox * 0.5f);
             ply.maxsSpawnBlock = pos + (SpawnBlockBox * 0.5f);
             ply.center = pos;
-            ply.triggerBounds = new Bounds(ply.center, TriggerBounds);
             return ply;
         }
 

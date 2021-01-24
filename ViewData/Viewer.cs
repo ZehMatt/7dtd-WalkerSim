@@ -1,10 +1,20 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 
 namespace WalkerSim.Viewer
 {
+    public enum DataType
+    {
+        Info,
+        WorldZones,
+        POIZones,
+        PlayerZones,
+        ActiveZombies,
+        InactiveZombies,
+        WorldEventSound,
+    }
+
     public partial class Base
     {
         protected byte[] ReadBytes(Stream stream, int len)
@@ -90,7 +100,6 @@ namespace WalkerSim.Viewer
         public int y1;
         public int x2;
         public int y2;
-
         public virtual void Serialize(Stream stream)
         {
             Write(stream, x1);
@@ -143,7 +152,7 @@ namespace WalkerSim.Viewer
     {
     }
 
-    public class MapData : Base, IWalkerSimMessage
+    public class State : Base, IWalkerSimMessage
     {
         public int w;
         public int h;
@@ -152,11 +161,6 @@ namespace WalkerSim.Viewer
         public int density;
         public float zombieSpeed;
         public float timescale;
-        public List<DataZombie> active;
-        public List<DataZombie> inactive;
-        public List<DataPlayerZone> playerZones;
-        public List<DataPOIZone> poiZones;
-        public List<DataWorldZone> worldZones;
 
         public void Serialize(Stream stream)
         {
@@ -167,63 +171,7 @@ namespace WalkerSim.Viewer
             Write(stream, density);
             Write(stream, zombieSpeed);
             Write(stream, timescale);
-
-            {
-                var list = active;
-                int len = list == null ? 0 : list.Count;
-                Write(stream, len);
-                for (int i = 0; i < len; i++)
-                {
-                    var e = list[i];
-                    e.Serialize(stream);
-                }
-            }
-
-            {
-                var list = inactive;
-                int len = list == null ? 0 : list.Count;
-                Write(stream, len);
-                for (int i = 0; i < len; i++)
-                {
-                    var e = list[i];
-                    e.Serialize(stream);
-                }
-            }
-
-            {
-                var list = playerZones;
-                int len = list == null ? 0 : list.Count;
-                Write(stream, len);
-                for (int i = 0; i < len; i++)
-                {
-                    var e = list[i];
-                    e.Serialize(stream);
-                }
-            }
-
-            {
-                var list = poiZones;
-                int len = list == null ? 0 : list.Count;
-                Write(stream, len);
-                for (int i = 0; i < len; i++)
-                {
-                    var e = list[i];
-                    e.Serialize(stream);
-                }
-            }
-
-            {
-                var list = worldZones;
-                int len = list == null ? 0 : list.Count;
-                Write(stream, len);
-                for (int i = 0; i < len; i++)
-                {
-                    var e = list[i];
-                    e.Serialize(stream);
-                }
-            }
         }
-
         public void Deserialize(Stream stream)
         {
             Read(stream, out w);
@@ -233,71 +181,143 @@ namespace WalkerSim.Viewer
             Read(stream, out density);
             Read(stream, out zombieSpeed);
             Read(stream, out timescale);
+        }
+    }
 
+    public class WorldZones : Base, IWalkerSimMessage
+    {
+        public List<DataWorldZone> zones;
+        public void Serialize(Stream stream)
+        {
+            var list = zones;
+            int len = list == null ? 0 : list.Count;
+            Write(stream, len);
+            for (int i = 0; i < len; i++)
             {
-                var list = new List<DataZombie>();
-                int len = 0;
-                Read(stream, out len);
-                for (int i = 0; i < len; i++)
-                {
-                    DataZombie e = new DataZombie();
-                    e.Deserialize(stream);
-                    list.Add(e);
-                }
-                active = list;
+                var e = list[i];
+                e.Serialize(stream);
             }
+        }
+        public void Deserialize(Stream stream)
+        {
+            var list = new List<DataWorldZone>();
+            int len = 0;
+            Read(stream, out len);
+            for (int i = 0; i < len; i++)
+            {
+                DataWorldZone e = new DataWorldZone();
+                e.Deserialize(stream);
+                list.Add(e);
+            }
+            zones = list;
+        }
+    }
 
-            {
-                var list = new List<DataZombie>();
-                int len = 0;
-                Read(stream, out len);
-                for (int i = 0; i < len; i++)
-                {
-                    DataZombie e = new DataZombie();
-                    e.Deserialize(stream);
-                    list.Add(e);
-                }
-                inactive = list;
-            }
+    public class POIZones : Base, IWalkerSimMessage
+    {
+        public List<DataPOIZone> zones;
 
+        public void Serialize(Stream stream)
+        {
+            var list = zones;
+            int len = list == null ? 0 : list.Count;
+            Write(stream, len);
+            for (int i = 0; i < len; i++)
             {
-                var list = new List<DataPlayerZone>();
-                int len = 0;
-                Read(stream, out len);
-                for (int i = 0; i < len; i++)
-                {
-                    DataPlayerZone e = new DataPlayerZone();
-                    e.Deserialize(stream);
-                    list.Add(e);
-                }
-                playerZones = list;
+                var e = list[i];
+                e.Serialize(stream);
             }
+        }
+        public void Deserialize(Stream stream)
+        {
+            var list = new List<DataPOIZone>();
+            int len = 0;
+            Read(stream, out len);
+            for (int i = 0; i < len; i++)
+            {
+                DataPOIZone e = new DataPOIZone();
+                e.Deserialize(stream);
+                list.Add(e);
+            }
+            zones = list;
+        }
+    }
 
-            {
-                var list = new List<DataPOIZone>();
-                int len = 0;
-                Read(stream, out len);
-                for (int i = 0; i < len; i++)
-                {
-                    DataPOIZone e = new DataPOIZone();
-                    e.Deserialize(stream);
-                    list.Add(e);
-                }
-                poiZones = list;
-            }
+    public class PlayerZones : Base, IWalkerSimMessage
+    {
+        public List<DataPlayerZone> zones;
 
+        public void Serialize(Stream stream)
+        {
+            var list = zones;
+            int len = list == null ? 0 : list.Count;
+            Write(stream, len);
+            for (int i = 0; i < len; i++)
             {
-                var list = new List<DataWorldZone>();
-                int len = 0;
-                Read(stream, out len);
-                for (int i = 0; i < len; i++)
-                {
-                    DataWorldZone e = new DataWorldZone();
-                    e.Deserialize(stream);
-                    list.Add(e);
-                }
-                worldZones = list;
+                var e = list[i];
+                e.Serialize(stream);
             }
+        }
+        public void Deserialize(Stream stream)
+        {
+            var list = new List<DataPlayerZone>();
+            int len = 0;
+            Read(stream, out len);
+            for (int i = 0; i < len; i++)
+            {
+                DataPlayerZone e = new DataPlayerZone();
+                e.Deserialize(stream);
+                list.Add(e);
+            }
+            zones = list;
+        }
+    }
+
+    public class ZombieList : Base, IWalkerSimMessage
+    {
+        public List<DataZombie> list;
+
+        public void Serialize(Stream stream)
+        {
+            int len = list == null ? 0 : list.Count;
+            Write(stream, len);
+            for (int i = 0; i < len; i++)
+            {
+                var e = list[i];
+                e.Serialize(stream);
+            }
+        }
+        public void Deserialize(Stream stream)
+        {
+            var res = new List<DataZombie>();
+            int len = 0;
+            Read(stream, out len);
+            for (int i = 0; i < len; i++)
+            {
+                DataZombie e = new DataZombie();
+                e.Deserialize(stream);
+                res.Add(e);
+            }
+            list = res;
+        }
+    }
+
+    public class WorldEventSound : Base, IWalkerSimMessage
+    {
+        public int x;
+        public int y;
+        public int distance;
+        public void Serialize(Stream stream)
+        {
+            Write(stream, x);
+            Write(stream, y);
+            Write(stream, distance);
+        }
+        public void Deserialize(Stream stream)
+        {
+            Read(stream, out x);
+            Read(stream, out y);
+            Read(stream, out distance);
         }
     }
 }

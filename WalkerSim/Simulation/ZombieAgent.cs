@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace WalkerSim
@@ -25,6 +22,15 @@ namespace WalkerSim
 
     class ZombieAgent : IComparer, IEquatable<ZombieAgent>
     {
+        const int MaxVisitedHistory = 5;
+        public enum State
+        {
+            Idle,
+            Wandering,
+            Investigating,
+            Active,
+        }
+
         public int entityId = -1;
         public int id = -1;
         public int classId = -1;
@@ -34,6 +40,11 @@ namespace WalkerSim
         public Vector3 dir = new Vector3();
         public Zone target = null;
         public Zone currentZone = null;
+        public List<Zone> visitedZones = new List<Zone>();
+        public State state = State.Idle;
+        public ulong lifeTime = 0;
+        public float simulationTime = 0.0f;
+
         int IComparer.Compare(object a, object b)
         {
             return ((ZombieAgent)a).id - ((ZombieAgent)b).id;
@@ -56,5 +67,20 @@ namespace WalkerSim
             return false;
         }
 
+        public void AddVisitedZone(Zone zone)
+        {
+            if (zone == null)
+                return;
+
+            visitedZones.Add(zone);
+
+            if (visitedZones.Count > MaxVisitedHistory)
+                visitedZones.RemoveAt(0);
+        }
+
+        public bool HasVisitedZone(Zone zone)
+        {
+            return visitedZones.Contains(zone);
+        }
     }
 }

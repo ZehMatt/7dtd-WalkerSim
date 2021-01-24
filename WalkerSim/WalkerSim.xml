@@ -1,10 +1,22 @@
-<?xml version="1.0"?>
+﻿<?xml version="1.0"?>
 <WalkerSim>
   <!--
   The simulation tick rate in hz, if you have performance issues you can try lowering this.
   NOTE: Going lower than 20 may cause issues due to accuracy.
   -->
-  <UpdateInterval>60</UpdateInterval>
+  <UpdateInterval>40</UpdateInterval>
+
+  <!--
+  This allows to reserve a certain percentage of the maximum allowed enemies. This ensures
+  that sleeper zombies have a chance to spawn.
+  The maximum zombies the simulation can spawn is MaxSpawnedZombies - (MaxSpawnedZombies * Reserved)
+  -->
+  <ReservedSpawnSlots>0.5</ReservedSpawnSlots>
+
+  <!--
+  This will pause the simulation during blood moon.
+  -->
+  <PauseDuringBloodmon>false</PauseDuringBloodmon>
 
   <!--
   Halts the simulation if no players are on the server, set to false for a continious simulation.
@@ -16,39 +28,76 @@
   1: The plugin has a command to reset the simulation: "walkersim reset"
   2: You can delete the simulation data located at your save path named WalkerSim.bin
   NOTE: Turning this off will always restart the simulation whenever the server restarts.
-	-->
+    -->
   <Persistent>true</Persistent>
 
   <!-- 
-	Divides the entire map into zones, the zone divider is used on each axis (xy).
-	Offline zombies will use these zones as their goal targets, once a specific zone is 
-	reached with a local offset they will pick a new zone that is close by.
-	-->
+    Divides the entire map into zones, the zone divider is used on each axis (xy).
+    Offline zombies will use these zones as their goal targets, once a specific zone is 
+    reached with a local offset they will pick a new zone that is close by.
+    -->
   <WorldZoneDivider>32</WorldZoneDivider>
 
   <!--
-	Chance the offline zombie will travel to a POI rather than a world zone.
-	This increases the amount of zombies nearby POIs to make exploration a bit more intense.
-	Valid values are from 0.0 - 1.0 representing a chance where 1 is 100%
-	-->
-  <POITravellerChance>0.25</POITravellerChance>
+    Chance the offline zombie will travel to a POI rather than a world zone.
+    This increases the amount of zombies nearby POIs to make exploration a bit more intense.
+    Valid values are from 0.0 - 1.0 representing a chance where 1 is 100%
+    -->
+  <POITravellerChance>0.65</POITravellerChance>
 
   <!--
-	Population density per square kilometer, this parameter drives the amount of zombies per map size.
-	Some examples (https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population_density):
-	Increasing the population density will also make the game a lot harder, be careful here.
-	-->
-  <PopulationDensity>120</PopulationDensity>
+    Scales the offline zombie walk speed on-top of the normal zombie walk speed setting.
+    -->
+  <WalkSpeedScale>1.0</WalkSpeedScale>
 
   <!--
-	Enables the view server allowing the WalkerSimViewer to connect and inspect the entire simulation.
-	NOTE: You should be careful enabling this. The protocol is not efficient and is mainly used for debugging
-	purpose only.
-	-->
+    Population density per square kilometer, this parameter drives the amount of zombies per map size.
+    Some examples (https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population_density):
+    Increasing the population density will also make the game a lot harder, be careful here.
+    -->
+  <PopulationDensity>60</PopulationDensity>
+
+  <!--
+    This controls the sound distance that notifies offline zombies when being fired.
+    -->
+  <SoundInfo>
+    <!-- Explosions -->
+    <Sound Source="explosion_grenade" Distance="700.0" />
+    <Sound Source="explosion1" Distance="700.0" />
+    <!-- Normal weapon fire -->
+    <Sound Source="m136_fire" Distance="150.0" />
+    <Sound Source="pistol_fire" Distance="200.0" />
+    <Sound Source="mp5_fire" Distance="250.0" />
+    <Sound Source="blunderbuss_fire" Distance="300.0" />
+    <Sound Source="autoshotgun_fire" Distance="350.0" />
+    <Sound Source="pump_shotgun_fire" Distance="350.0" />
+    <Sound Source="shotgundb_fire" Distance="350.0" />
+    <Sound Source="44magnum_fire" Distance="400.0" />
+    <Sound Source="desertvulture_fire" Distance="400.0" />
+    <Sound Source="tacticalar_fire" Distance="400.0" />
+    <Sound Source="ak47_fire" Distance="450.0" />
+    <Sound Source="sniperrifle_fire" Distance="500.0" />
+    <Sound Source="m60_fire" Distance="500.0" />
+    <Sound Source="sharpshooter_fire" Distance="500.0" />
+    <!-- Silenced weapon fire -->
+    <Sound Source="ak47_s_fire" Distance="50.0" />
+    <Sound Source="pistol_s_fire" Distance="50.0" />
+    <Sound Source="sniperrifle_s_fire" Distance="50.0" />
+    <Sound Source="mp5_s_fire" Distance="50.0" />
+    <Sound Source="pump_shotgun_s_fire" Distance="50.0" />
+    <Sound Source="hunting_rifle_s_fire" Distance="50.0" />
+  </SoundInfo>
+
+  <!--
+    Enables the view server allowing the WalkerSimViewer to connect and inspect the entire simulation.
+    NOTE: You should be careful enabling this. The protocol is not efficient and is mainly used for debugging
+    purpose only.
+    -->
   <ViewServer>false</ViewServer>
 
   <!--
-	View server port, default is 13632.
-	-->
+    View server port, default is 13632.
+    -->
   <ViewServerPort>13632</ViewServerPort>
+
 </WalkerSim>

@@ -19,9 +19,13 @@ namespace WalkerSim
             _timer.Start();
         }
 
+        int Scale(float v)
+        {
+            return (int)(v * 1.5);
+        }
         int Scale(int v)
         {
-            return (int)((float)v * 1.5);
+            return Scale((float)v);
         }
 
         Bitmap GetBitmap(State state)
@@ -94,6 +98,24 @@ namespace WalkerSim
                     }
                 }
 
+                // Sounds
+                {
+                    var sounds = state.sounds;
+                    if (sounds != null)
+                    {
+                        foreach (var snd in sounds)
+                        {
+                            var elapsed = snd.watch.ElapsedMilliseconds;
+                            var alpha = (elapsed / 1000.0f);
+                            int dim = (int)(alpha * snd.radius) * 2;
+                            int x = snd.x - (dim / 2);
+                            int y = snd.y - (dim / 2);
+
+                            gr.DrawEllipse(Pens.Green, Scale(x), Scale(y), Scale(dim), Scale(dim));
+                        }
+                    }
+                }
+
                 // Stats
                 {
                     gr.FillRectangle(Brushes.Black, 0, 0, worldInfo.mapW, 20);
@@ -124,6 +146,8 @@ namespace WalkerSim
 
         private void OnTick(Object myObject, EventArgs myEventArgs)
         {
+            _client.Update();
+
             mapImage.Visible = _client.IsConnected();
 
             if (_client.IsConnecting())
@@ -153,10 +177,13 @@ namespace WalkerSim
                 Bitmap bm = GetBitmap(state);
                 if (mapImage.Image != null)
                     mapImage.Image.Dispose();
-                mapImage.Image = bm;
-                mapImage.Width = bm.Width;
-                mapImage.Visible = true;
-                mapImage.Height = bm.Height;
+                if (bm != null)
+                {
+                    mapImage.Image = bm;
+                    mapImage.Width = bm.Width;
+                    mapImage.Visible = true;
+                    mapImage.Height = bm.Height;
+                }
             }
             else
             {

@@ -1207,6 +1207,26 @@ namespace WalkerSim
             }
         }
 
+        void SendSoundEvent(ViewServer sender, Vector3 pos, float radius)
+        {
+            if (sender == null)
+                return;
+
+            var p = WorldToBitmap(pos);
+            var data = new Viewer.WorldEventSound();
+            data.x = p.x;
+            data.y = p.y;
+            // FIXME: This is only remapped in one direction.
+
+            var worldSize = Utils.Distance(_worldMins.x, _worldMaxs.x);
+            var rescaled = (radius / worldSize) * 512.0f;
+            data.distance = (int)rescaled;
+
+            Log.Out("Distance {0}, Scaled: {1}", radius, data.distance);
+
+            sender.Broadcast(Viewer.DataType.WorldEventSound, data);
+        }
+
         void SendSimulation(ViewServer sender, ViewServer.Client cl)
         {
             SendState(sender, cl);
@@ -1228,6 +1248,7 @@ namespace WalkerSim
                     Radius = radius,
                 });
             }
+            SendSoundEvent(_server, pos, radius);
         }
     }
 }

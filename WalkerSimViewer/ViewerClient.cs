@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 
@@ -13,6 +15,14 @@ namespace WalkerSim
         public Viewer.Header header = new Viewer.Header();
     }
 
+    public class SoundEvent
+    {
+        public int x;
+        public int y;
+        public int radius;
+        public Stopwatch watch = new Stopwatch();
+    }
+
     public class State
     {
         public Viewer.State worldInfo = new Viewer.State();
@@ -21,6 +31,7 @@ namespace WalkerSim
         public Viewer.PlayerZones playerZones = new Viewer.PlayerZones();
         public Viewer.ZombieList inactive = new Viewer.ZombieList();
         public Viewer.ZombieList active = new Viewer.ZombieList();
+        public List<SoundEvent> sounds = new List<SoundEvent>();
     }
 
     class ViewerClient
@@ -33,6 +44,19 @@ namespace WalkerSim
 
         public void Update()
         {
+            if (_worldState != null && _worldState.sounds != null)
+            {
+                for (int i = 0; i < _worldState.sounds.Count; i++)
+                {
+                    var snd = _worldState.sounds[i];
+                    var elapsed = snd.watch.ElapsedMilliseconds;
+                    if (elapsed >= 1000)
+                    {
+                        _worldState.sounds.RemoveAt(i);
+                        i--;
+                    }
+                }
+            }
         }
 
         public State GetMapData()
@@ -170,6 +194,19 @@ namespace WalkerSim
                         break;
                     case Viewer.DataType.InactiveZombies:
                         _worldState.inactive.Deserialize(buffer);
+                        break;
+                    case Viewer.DataType.WorldEventSound:
+                        var ev = new Viewer.WorldEventSound();
+                        ev.Deserialize(buffer);
+
+                        var snd = new SoundEvent();
+                        snd.x = ev.x;
+                        snd.y = ev.y;
+                        snd.radius = ev.distance;
+                        snd.watch.Restart();
+
+                        _worldState.sounds.Add(snd);
+
                         break;
                     default:
                         break;

@@ -12,7 +12,9 @@ namespace WalkerSim.Viewer
         PlayerZones,
         ActiveZombies,
         InactiveZombies,
+        WorldEventSound,
     }
+
     public partial class Base
     {
         protected byte[] ReadBytes(Stream stream, int len)
@@ -297,6 +299,25 @@ namespace WalkerSim.Viewer
                 res.Add(e);
             }
             list = res;
+        }
+    }
+
+    public class WorldEventSound : Base, IWalkerSimMessage
+    {
+        public int x;
+        public int y;
+        public int distance;
+        public void Serialize(Stream stream)
+        {
+            Write(stream, x);
+            Write(stream, y);
+            Write(stream, distance);
+        }
+        public void Deserialize(Stream stream)
+        {
+            Read(stream, out x);
+            Read(stream, out y);
+            Read(stream, out distance);
         }
     }
 }

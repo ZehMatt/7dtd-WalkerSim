@@ -29,7 +29,7 @@ namespace WalkerSim
     public class Simulation
     {
         const int MaxZombieSpawnsPerTick = 2;
-        const ulong MinZombieLifeTime = 120; // 2 in-game minutes.
+        const ulong MinZombieLifeTime = 60; // 1 in-game minutes.
 
         static int DayTimeMin = GamePrefs.GetInt(EnumGamePrefs.DayNightLength);
         static int MaxAliveZombies = GamePrefs.GetInt(EnumGamePrefs.MaxSpawnedZombies);
@@ -571,7 +571,7 @@ namespace WalkerSim
 
             zombie.entityId = zombieEnt.entityId;
             zombie.currentZone = zone;
-            zombie.spawnTime = world.GetWorldTime();
+            zombie.lifeTime = world.GetWorldTime();
 
             zone.numZombies++;
 
@@ -664,7 +664,8 @@ namespace WalkerSim
                     bool removeZombie = false;
 
                     var zombie = _activeZombies[i];
-                    var lifeTime = world.GetWorldTime() - zombie.spawnTime;
+                    var worldTime = world.GetWorldTime();
+                    var timeAlive = worldTime - zombie.lifeTime;
 
                     var currentZone = zombie.currentZone as PlayerZone;
                     if (currentZone != null)
@@ -700,7 +701,7 @@ namespace WalkerSim
                         else
                         {
                             List<PlayerZone> zones = _playerZones.FindAllByPos2D(ent.GetPosition());
-                            if (zones.Count == 0 && lifeTime >= MinZombieLifeTime)
+                            if (zones.Count == 0 && timeAlive >= MinZombieLifeTime)
                             {
 #if DEBUG
                                 Log.Out("[WalkerSim] Zombie {0} out of range, turning inactive", ent);
@@ -723,6 +724,8 @@ namespace WalkerSim
                                     {
                                         zone.numZombies++;
                                         zombie.currentZone = zone;
+                                        // If the zombie is inside a player zone make sure we renew the life time.
+                                        zombie.lifeTime = worldTime;
                                         break;
                                     }
                                 }
@@ -815,17 +818,27 @@ namespace WalkerSim
             if (zombie.state != ZombieAgent.State.Investigating)
                 return;
 #endif
-            zombie.dir = zombie.targetPos - zombie.pos;
-            zombie.dir.Normalize();
-
             float speed = _state.ScaledZombieSpeed;
             speed *= dt;
 
-            zombie.pos = Vector3.MoveTowards(zombie.pos, zombie.targetPos, speed);
+            // Calculate direction towards target position.
+            zombie.dir = zombie.targetPos - zombie.pos;
+            zombie.dir.Normalize();
+
+            var distance = Vector3.Distance(zombie.pos, zombie.targetPos) * 0.75f;
+
+            var t = (zombie.simulationTime + zombie.id) * 0.2f;
+            var offset = new Vector3(Mathf.Cos(t), 0.0f, Mathf.Sin(t));
+            offset *= distance;
+
+            // Move towards target.
+            zombie.pos = Vector3.MoveTowards(zombie.pos, zombie.targetPos + offset, speed);
         }
 
         private void UpdateInactiveZombie(ZombieAgent zombie, float dt, WorldEvent ev)
         {
+            zombie.simulationTime += dt;
+
             ProcessWorldEvent(zombie, ev);
             UpdateTarget(zombie);
             UpdateWalking(zombie, dt);

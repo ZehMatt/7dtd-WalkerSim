@@ -42,7 +42,8 @@ namespace WalkerSim
         public Zone currentZone = null;
         public List<Zone> visitedZones = new List<Zone>();
         public State state = State.Idle;
-        public ulong spawnTime = 0;
+        public ulong lifeTime = 0;
+        public float simulationTime = 0.0f;
 
         int IComparer.Compare(object a, object b)
         {

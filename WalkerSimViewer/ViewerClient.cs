@@ -179,12 +179,15 @@ namespace WalkerSim
                 {
                     case Viewer.DataType.Info:
                         _worldState.worldInfo.Deserialize(buffer);
+                        Console.WriteLine("Received WorldInfo");
                         break;
                     case Viewer.DataType.WorldZones:
                         _worldState.worldZones.Deserialize(buffer);
+                        Console.WriteLine("Received WorldZones");
                         break;
                     case Viewer.DataType.POIZones:
                         _worldState.poiZones.Deserialize(buffer);
+                        Console.WriteLine("Received POIZones");
                         break;
                     case Viewer.DataType.PlayerZones:
                         _worldState.playerZones.Deserialize(buffer);

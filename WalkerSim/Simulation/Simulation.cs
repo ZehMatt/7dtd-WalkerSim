@@ -122,7 +122,7 @@ namespace WalkerSim
 
         void OnClientConnected(ViewServer sender, ViewServer.Client cl)
         {
-            SendSimulation(sender, cl);
+            SendStaticState(sender, cl);
         }
 
         void OnStateChanged()
@@ -777,9 +777,6 @@ namespace WalkerSim
                 zombie.target = _worldZones.FindByPos2D(zombie.targetPos);
 
                 zombie.state = ZombieAgent.State.Investigating;
-#if DEBUG
-                Log.Out("Reacting to sound at {0}", ev.Pos);
-#endif
             }
         }
 
@@ -1009,9 +1006,10 @@ namespace WalkerSim
                 bool isPaused = false;
 #else
                 bool isPaused = !(_playerZones.HasPlayers() || !Config.Instance.PauseWithoutPlayers);
+#endif
                 if (Config.Instance.PauseDuringBloodmon && _state.IsBloodMoon)
                     isPaused = true;
-#endif
+
                 double dt = updateWatch.ElapsedMicroseconds / 1000000.0;
                 updateWatch.ResetAndRestart();
 
@@ -1076,9 +1074,12 @@ namespace WalkerSim
                     }
                 }
 
-                SendPlayerZones(_server, null);
-                SendInactiveZombieList(_server, null);
-                SendActiveZombieList(_server, null);
+                lock (_server)
+                {
+                    SendPlayerZones(_server, null);
+                    SendInactiveZombieList(_server, null);
+                    SendActiveZombieList(_server, null);
+                }
 
                 if (totalElapsed >= nextReport && !isPaused)
                 {
@@ -1227,14 +1228,14 @@ namespace WalkerSim
             sender.Broadcast(Viewer.DataType.WorldEventSound, data);
         }
 
-        void SendSimulation(ViewServer sender, ViewServer.Client cl)
+        void SendStaticState(ViewServer sender, ViewServer.Client cl)
         {
-            SendState(sender, cl);
-            SendWorldZones(sender, cl);
-            SendPOIZones(sender, cl);
-            SendPlayerZones(sender, cl);
-            SendInactiveZombieList(sender, cl);
-            SendActiveZombieList(sender, cl);
+            lock (sender)
+            {
+                SendState(sender, cl);
+                SendWorldZones(sender, cl);
+                SendPOIZones(sender, cl);
+            }
         }
 
         public void AddSoundEvent(Vector3 pos, float radius)

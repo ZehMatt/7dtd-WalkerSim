@@ -19,13 +19,13 @@ namespace WalkerSim
             _timer.Start();
         }
 
-        int Scale(float v)
+        int ScaleCoord(float v)
         {
             return (int)(v * 1.5);
         }
-        int Scale(int v)
+        int ScaleCoord(int v)
         {
-            return Scale((float)v);
+            return ScaleCoord((float)v);
         }
 
         Bitmap GetBitmap(State state)
@@ -42,7 +42,7 @@ namespace WalkerSim
             if (worldInfo.w == 0 || worldInfo.h == 0)
                 return null;
 
-            Bitmap bm = new Bitmap(Scale(worldInfo.w), Scale(worldInfo.h) + topBorderSize);
+            Bitmap bm = new Bitmap(ScaleCoord(worldInfo.w), ScaleCoord(worldInfo.h) + topBorderSize);
             using (System.Drawing.Graphics gr = System.Drawing.Graphics.FromImage(bm))
             {
                 gr.SmoothingMode = SmoothingMode.None;
@@ -53,7 +53,7 @@ namespace WalkerSim
                 {
                     foreach (var zone in worldZones.zones)
                     {
-                        gr.DrawRectangle(Pens.Gray, Scale(zone.x1), Scale(zone.y1), Scale(zone.x2 - zone.x1), Scale(zone.y2 - zone.y1));
+                        gr.DrawRectangle(Pens.Gray, ScaleCoord(zone.x1), ScaleCoord(zone.y1), ScaleCoord(zone.x2 - zone.x1), ScaleCoord(zone.y2 - zone.y1));
                     }
                 }
 
@@ -63,7 +63,7 @@ namespace WalkerSim
                     foreach (var poi in poiZones.zones)
                     {
                         // Zone
-                        gr.DrawRectangle(Pens.DarkGray, Scale(poi.x1), Scale(poi.y1), Scale(poi.x2 - poi.x1), Scale(poi.y2 - poi.y1));
+                        gr.DrawRectangle(Pens.DarkGray, ScaleCoord(poi.x1), ScaleCoord(poi.y1), ScaleCoord(poi.x2 - poi.x1), ScaleCoord(poi.y2 - poi.y1));
                     }
                 }
 
@@ -72,7 +72,7 @@ namespace WalkerSim
                 {
                     foreach (var zombie in inactive.list)
                     {
-                        gr.FillEllipse(Brushes.Red, Scale(zombie.x), Scale(zombie.y), 2, 2);
+                        gr.FillEllipse(Brushes.Red, ScaleCoord(zombie.x), ScaleCoord(zombie.y), 2, 2);
                     }
                 }
 
@@ -81,7 +81,7 @@ namespace WalkerSim
                 {
                     foreach (var zombie in active.list)
                     {
-                        gr.FillEllipse(Brushes.Blue, Scale(zombie.x), Scale(zombie.y), 2, 2);
+                        gr.FillEllipse(Brushes.Blue, ScaleCoord(zombie.x), ScaleCoord(zombie.y), 2, 2);
                     }
                 }
 
@@ -91,10 +91,10 @@ namespace WalkerSim
                     foreach (var zone in playerZones.zones)
                     {
                         // Zone
-                        gr.DrawRectangle(Pens.Green, Scale(zone.x1), Scale(zone.y1), Scale(zone.x2 - zone.x1), Scale(zone.y2 - zone.y1));
+                        gr.DrawRectangle(Pens.Green, ScaleCoord(zone.x1), ScaleCoord(zone.y1), ScaleCoord(zone.x2 - zone.x1), ScaleCoord(zone.y2 - zone.y1));
 
                         // Spawn Block.
-                        gr.DrawRectangle(Pens.Yellow, Scale(zone.x3), Scale(zone.y3), Scale(zone.x4 - zone.x3), Scale(zone.y4 - zone.y3));
+                        gr.DrawRectangle(Pens.Yellow, ScaleCoord(zone.x3), ScaleCoord(zone.y3), ScaleCoord(zone.x4 - zone.x3), ScaleCoord(zone.y4 - zone.y3));
                     }
                 }
 
@@ -111,7 +111,7 @@ namespace WalkerSim
                             int x = snd.x - (dim / 2);
                             int y = snd.y - (dim / 2);
 
-                            gr.DrawEllipse(Pens.Green, Scale(x), Scale(y), Scale(dim), Scale(dim));
+                            gr.DrawEllipse(Pens.Green, ScaleCoord(x), ScaleCoord(y), ScaleCoord(dim), ScaleCoord(dim));
                         }
                     }
                 }

@@ -163,6 +163,7 @@
             this.Name = "FormMain";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.Text = "WalkerSimView";
+            this.Load += new System.EventHandler(this.OnFormLoad);
             ((System.ComponentModel.ISupportInitialize)(this.mapImage)).EndInit();
             this.grpClient.ResumeLayout(false);
             this.grpClient.PerformLayout();

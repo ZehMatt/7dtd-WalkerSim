@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using System.IO;
 
 namespace WalkerSim
 {
@@ -211,6 +212,7 @@ namespace WalkerSim
                     int port = int.Parse(args[1]);
 
                     _client.Connect(host, port);
+                    SaveLastIP(host, port);
                 }
                 catch (Exception)
                 {
@@ -222,6 +224,31 @@ namespace WalkerSim
             {
                 _client.Disconnect();
                 btConnect.Text = "Connect";
+            }
+        }
+
+        private void SaveLastIP(string host, int port)
+        {
+            try
+            {
+                File.WriteAllText("lastip", $"{host}:{port}");
+            }
+            catch
+            {
+                return;
+            }
+            
+        }
+
+        private void OnFormLoad(object sender, EventArgs e)
+        {
+            try
+            {
+                txtRemote.Text = File.ReadAllText("lastip");
+            } 
+            catch
+            {
+                return;
             }
         }
     }

@@ -45,6 +45,12 @@
     <Compile Include="Simulation\PlayerZone.cs" />
     <Compile Include="Simulation\POIZone.cs" />
     <Compile Include="Simulation\PRNG.cs" />
+    <Compile Include="Simulation\Simulation.Active.cs" />
+    <Compile Include="Simulation\Simulation.Events.cs" />
+    <Compile Include="Simulation\Simulation.Inactive.cs" />
+    <Compile Include="Simulation\Simulation.Server.cs" />
+    <Compile Include="Simulation\Simulation.World.cs" />
+    <Compile Include="Simulation\Simulation.Zones.cs" />
     <Compile Include="Simulation\TargetZone.cs" />
     <Compile Include="Simulation\WorldState.cs" />
     <Compile Include="Simulation\WorldZone.cs" />

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Windows.Forms;
 using System.IO;
+using System.Windows.Forms;
 
 namespace WalkerSim
 {
@@ -104,8 +104,10 @@ namespace WalkerSim
                     var sounds = state.sounds;
                     if (sounds != null)
                     {
-                        foreach (var snd in sounds)
+                        for (int i = 0; i < sounds.Count; i++)
                         {
+                            var snd = sounds[i];
+
                             var elapsed = snd.watch.ElapsedMilliseconds;
                             var alpha = (elapsed / 1000.0f);
                             int dim = (int)(alpha * snd.radius) * 2;
@@ -237,7 +239,7 @@ namespace WalkerSim
             {
                 return;
             }
-            
+
         }
 
         private void OnFormLoad(object sender, EventArgs e)
@@ -245,7 +247,7 @@ namespace WalkerSim
             try
             {
                 txtRemote.Text = File.ReadAllText("lastip");
-            } 
+            }
             catch
             {
                 return;

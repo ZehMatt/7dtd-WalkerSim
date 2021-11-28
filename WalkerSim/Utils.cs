@@ -21,12 +21,12 @@ namespace WalkerSim
         // Returns the distance between a and b
         public static int Distance(int a, int b)
         {
-            return Math.Max(a, b) - Math.Min(a, b);
+            return Math.Abs(a - b);
         }
 
         public static float Distance(float a, float b)
         {
-            return Math.Max(a, b) - Math.Min(a, b);
+            return Math.Abs(a - b);
         }
     }
 }
